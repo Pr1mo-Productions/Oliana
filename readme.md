@@ -15,7 +15,7 @@ cargo build --release
 
 # Running
 
-After compoling, run `./target/release/hello-ai-game[.exe]`
+After compiling, run `./target/release/hello-ai-game[.exe]`
 
 You can directly compile & run in one step via `cargo run --release`
 
