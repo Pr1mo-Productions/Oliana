@@ -2,6 +2,8 @@ use kalosm::language::*;
 
 use kalosm::vision::{Wuerstchen, WuerstchenInferenceSettings};
 
+mod utils; // src/utils.rs
+
 /// A fictional character
 #[derive(Parse, Schema, Clone, Debug)]
 struct Character {
@@ -18,7 +20,9 @@ struct Character {
 
 #[tokio::main]
 async fn main() {
+    let main_start = std::time::Instant::now();
 
+    let llm_start = std::time::Instant::now();
     // First create a model. Chat models tend to work best with structured generation
     let model = Llama::phi_3().await.unwrap();
     // Then create a task with the parser as constraints
@@ -28,9 +32,11 @@ async fn main() {
     let mut stream = task.run("Create a list of random characters", &model);
     stream.to_std_out().await.unwrap();
     let character = stream.await.unwrap();
+    let llm_end = std::time::Instant::now();
     println!("{character:?}");
 
     // Image stuff
+    let image_start = std::time::Instant::now();
     let model = Wuerstchen::builder().build().await.unwrap();
     let settings = WuerstchenInferenceSettings::new(
         "a cute cat with a hat in a room covered with fur with incredible detail",
@@ -46,8 +52,16 @@ async fn main() {
             }
         }
     }
+    let image_end = std::time::Instant::now();
+
+    println!("Total Time: {}", utils::duration_to_display_str(&(image_end - main_start)));
+    println!("LLM Generation Time: {}", utils::duration_to_display_str(&(llm_start - llm_end)));
+    println!("Image Generation Time: {}", utils::duration_to_display_str(&(image_start - image_end)));
+
+
 
 }
+
 
 
 
