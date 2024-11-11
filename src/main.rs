@@ -1,7 +1,6 @@
 use kalosm::language::*;
 
-use futures_util::StreamExt;
-use kalosm_vision::{Wuerstchen, WuerstchenInferenceSettings};
+use kalosm::vision::{Wuerstchen, WuerstchenInferenceSettings};
 
 /// A fictional character
 #[derive(Parse, Schema, Clone, Debug)]
@@ -23,7 +22,7 @@ async fn main() {
     // First create a model. Chat models tend to work best with structured generation
     let model = Llama::phi_3().await.unwrap();
     // Then create a task with the parser as constraints
-    let task = Task::builder_for::<[Character; 10]>("You generate realistic JSON placeholders for characters")
+    let task = Task::builder_for::<[Character; 2]>("You generate realistic JSON placeholders for characters")
         .build();
     // Finally, run the task
     let mut stream = task.run("Create a list of random characters", &model);
