@@ -35,9 +35,9 @@ async fn main() {
     let settings = WuerstchenInferenceSettings::new(
         "a cute cat with a hat in a room covered with fur with incredible detail",
     )
-    .with_prior_steps(2) // todo increase
-    .with_denoiser_steps(2)
-    .with_sample_count(6);
+    .with_prior_steps(4) // todo increase
+    .with_denoiser_steps(4)
+    .with_sample_count(12);
 
     if let Ok(mut images) = model.run(settings) {
         while let Some(image) = images.next().await {
