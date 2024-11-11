@@ -3,6 +3,10 @@ name = "hello-ai-game"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# To build with kalosm's "cuda" feature, compile with `cargo build --features cuda --release`
+cuda = ["kalosm/cuda"]
+
 [dependencies]
 kalosm = { git = "https://github.com/floneum/floneum", version = "0.3", features = ["full"] }
 tokio = { version = "1.41", features = ["full"] }

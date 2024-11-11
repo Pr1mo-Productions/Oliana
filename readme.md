@@ -8,6 +8,18 @@ to perform important tasks that will eventually go into a more well-thought-out 
 
 As with most rust programs, execution begins at `src/main.rs` `main()`.
 
+# Dependencies
+
+__Required__
+
+ - [Rust](https://rustup.rs/)
+
+__Optional__
+
+ - [cuDNN](https://developer.nvidia.com/cuDNN)
+    - Build with `cargo build --features cuda --release` to link against cuDNN and expose GPU processing capabilities of `floneum/kalosm`
+
+
 # Compiling
 
 To transform the source code into a `.exe` program, run
