@@ -24,6 +24,7 @@ You can directly compile & run in one step via `cargo run --release`
 
  - [ ] `floneum/kalosm` download models automatically to `???` - is there a mechanism to control where these files go so when we build an installer we can ship 1 big component instead of downloading the world?
  - [ ] What magic needs to be invoked for `floneum/kalosm` GPU support? This will allow big hardware to run the game fast!
+ - [ ] Of the models or model formats (`gguf`, `ggml`, `safetensors` et al) integrated into `floneum/kalosm`, which models would be best for various game mechanics? What are the hardware-requirement / performance trade-offs?
 
 
 
