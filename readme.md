@@ -1,7 +1,7 @@
 
 # Hello-AI
 
-This repo is a single rust binary which excersizes the library [`floneum`](https://github.com/floneum/floneum)
+This repo is a single rust binary which exercises the library [`floneum`](https://github.com/floneum/floneum)
 to perform important tasks that will eventually go into a more well-thought-out game.
 
 # Compiling
