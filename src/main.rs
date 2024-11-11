@@ -1,3 +1,7 @@
+
+// Turn off compiler warnings we don't care about while in R&D phase
+#![allow(dead_code)]
+
 use kalosm::language::*;
 
 use kalosm::vision::{Wuerstchen, WuerstchenInferenceSettings};
@@ -37,7 +41,9 @@ async fn main() {
 
     // Image stuff
     let image_start = std::time::Instant::now();
-    let model = Wuerstchen::builder().build().await.unwrap();
+    let model = Wuerstchen::builder()
+        .with_flash_attn(true) // reduce GPU vram required
+        .build().await.unwrap();
     let settings = WuerstchenInferenceSettings::new(
         "a cute cat with a hat in a room covered with fur with incredible detail",
     )
