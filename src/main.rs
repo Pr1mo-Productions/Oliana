@@ -42,7 +42,7 @@ async fn main() {
     // Image stuff
     let image_start = std::time::Instant::now();
     let model = Wuerstchen::builder()
-        .with_flash_attn(true) // reduce GPU vram required
+        //.with_flash_attn(true) // reduce GPU vram required - requires kalosm to expise a feature flag!
         .build().await.unwrap();
     let settings = WuerstchenInferenceSettings::new(
         "a cute cat with a hat in a room covered with fur with incredible detail",
@@ -54,7 +54,9 @@ async fn main() {
     if let Ok(mut images) = model.run(settings) {
         while let Some(image) = images.next().await {
             if let Some(buf) = image.generated_image() {
-                buf.save(&format!("{}.png", image.sample_num())).unwrap();
+                let file = format!("{}.png", image.sample_num());
+                buf.save(&file).unwrap();
+                eprintln!("Saved {}", &file);
             }
         }
     }

@@ -5,7 +5,11 @@ edition = "2021"
 
 [features]
 # To build with kalosm's "cuda" feature, compile with `cargo build --features cuda --release`
+# Host needs CUDA dev tools installed
 cuda = ["kalosm/cuda"]
+# To build with kalosm's "mkl" feature, compile with `cargo build --features mkl --release`
+# Host needs intel-oneapi-mkl / Intel MKL dev tools installed
+mkl = ["kalosm/mkl"]
 
 [dependencies]
 kalosm = { git = "https://github.com/floneum/floneum", version = "0.3", features = ["full"] }
