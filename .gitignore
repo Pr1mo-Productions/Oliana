@@ -1,6 +1,10 @@
 *.png
 SDv1-4.mpk
 
+*vocab*txt
+
+
+
 # Added by cargo
 
 /target

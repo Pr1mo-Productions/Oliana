@@ -83,9 +83,61 @@ async fn main() {
         }
     }
 
-    // stablediffusion::
+    if !std::path::Path::new("bpe_simple_vocab_16e6.txt").exists() {
+        // Download it!
+        let mut downloader = downloader::Downloader::builder()
+            .download_folder(std::path::Path::new("."))
+            .parallel_requests(2)
+            .build()
+            .unwrap();
+
+        let dl = downloader::Download::new("https://raw.githubusercontent.com/Gadersd/stable-diffusion-burn/refs/heads/main/bpe_simple_vocab_16e6.txt");
+
+        let result = downloader.async_download(&[dl]).await.unwrap();
+
+        for r in result {
+            match r {
+                Err(e) => println!("Error: {}", e.to_string()),
+                Ok(s) => println!("Success: {}", &s),
+            };
+        }
+    }
+
+    use burn_tch::{LibTorch, LibTorchDevice};
 
 
+    const SD_FILE: &'static str = "SDv1-4.mpk";
+
+    // type Backend = LibTorch<f32>;
+
+    //let device = LibTorchDevice::Cuda(0);
+    let device = LibTorchDevice::Cpu;
+    //let device = LibTorchDevice::Mps;
+
+    println!("Loading tokenizer...");
+    let tokenizer = SimpleTokenizer::new().unwrap(); // requires the file "bpe_simple_vocab_16e6.txt"
+    println!("Loading model...");
+    let sd: StableDiffusion<LibTorch<f32>> = load_stable_diffusion_model_file(SD_FILE, &device).expect("Could not load sd model file");
+
+    let prompt = "A cowboy exploring a computer cave";
+    let unconditional_guidance_scale: f64 = 6.5;
+    let n_steps: usize = 24;
+    let output_image_prefix = "out-";
+
+    let unconditional_context = sd.unconditional_context(&tokenizer);
+    let context = sd.context(&tokenizer, prompt).unsqueeze::<3>(); //.repeat(0, 2); // generate 2 samples
+
+    println!("Sampling image...");
+    let images = sd.sample_image(
+        context,
+        unconditional_context,
+        unconditional_guidance_scale,
+        n_steps,
+    );
+    save_images(&images, output_image_prefix, 512, 512).unwrap_or_else(|err| {
+        eprintln!("Error saving image: {}", err);
+        process::exit(1);
+    });
 
     let image_end = std::time::Instant::now();
 
@@ -113,13 +165,14 @@ use burn::{
     tensor::{backend::Backend, Tensor},
 };
 
-        use burn_tch::{LibTorch, LibTorchDevice};
+use burn_tch::{LibTorch, LibTorchDevice};
 
 use std::env;
 use std::io;
 use std::process;
 
 use burn::record::{self, NamedMpkFileRecorder, FullPrecisionSettings, Recorder};
+
 
 fn load_stable_diffusion_model_file<B: Backend>(
     filename: &str,
@@ -128,80 +181,6 @@ fn load_stable_diffusion_model_file<B: Backend>(
     NamedMpkFileRecorder::<FullPrecisionSettings>::new()
         .load(filename.into(), device)
         .map(|record| StableDiffusionConfig::new().init(device).load_record(record))
-}
-
-fn not_main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 7 && args.len() != 8 {
-        eprintln!("Usage: {} <model_type(burn or dump)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]", args[0]);
-        process::exit(1);
-    }
-
-    let model_type = &args[1];
-    let model_name = &args[2];
-    let unconditional_guidance_scale: f64 = args[3].parse().unwrap_or_else(|_| {
-        eprintln!("Error: Invalid unconditional guidance scale.");
-        process::exit(1);
-    });
-    let n_steps: usize = args[4].parse().unwrap_or_else(|_| {
-        eprintln!("Error: Invalid number of diffusion steps.");
-        process::exit(1);
-    });
-    let prompt = &args[5];
-    let output_image_name = &args[6];
-
-    // Optional device parameter
-    let device_arg = if args.len() == 8 { Some(&args[7]) } else { None };
-
-
-    type Backend = LibTorch<f32>;
-
-    let device = if let Some(dev_str) = device_arg {
-        match dev_str.to_lowercase().as_str() {
-            "cpu" => LibTorchDevice::Cpu,
-            "mps" => LibTorchDevice::Mps,
-            s if s.starts_with("cuda") => {
-                let idx = s[4..].parse().unwrap_or(0);
-                LibTorchDevice::Cuda(idx)
-            }
-            _ => {
-                eprintln!("Unknown device: {}", dev_str);
-                process::exit(1);
-            }
-        }
-    } else {
-        LibTorchDevice::Cuda(0)
-    };
-
-    println!("Loading tokenizer...");
-    let tokenizer = SimpleTokenizer::new().unwrap();
-    println!("Loading model...");
-    let sd: StableDiffusion<Backend> = if model_type == "burn" {
-        load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
-            eprintln!("Error loading model: {}", err);
-            process::exit(1);
-        })
-    } else {
-        load_stable_diffusion(model_name, &device).unwrap_or_else(|err| {
-            eprintln!("Error loading model dump: {}", err);
-            process::exit(1);
-        })
-    };
-
-    let unconditional_context = sd.unconditional_context(&tokenizer);
-    let context = sd.context(&tokenizer, prompt).unsqueeze::<3>(); //.repeat(0, 2); // generate 2 samples
-
-    println!("Sampling image...");
-    let images = sd.sample_image(
-        context,
-        unconditional_context,
-        unconditional_guidance_scale,
-        n_steps,
-    );
-    save_images(&images, output_image_name, 512, 512).unwrap_or_else(|err| {
-        eprintln!("Error saving image: {}", err);
-        process::exit(1);
-    });
 }
 
 use image;
