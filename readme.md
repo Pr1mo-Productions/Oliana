@@ -44,6 +44,12 @@ You can directly compile & run in one step via `cargo run --release`
  - [ ] There exist many graphics libraries, and rust has bindings to a lot of them. Which graphics system makes sense for a videogame, and do we want to focus local-only or play with a web-based design to serve graphics as HTML instead of native buttons? (https://github.com/rust-unofficial/awesome-rust?tabq=readme-ov-file#gui)
  - [ ] for long-term or plot-related LLM memory - what existing tools make sense to use? (https://github.com/jondot/awesome-rust-llm?tab=readme-ov-file#llm-memory)
 
+# Miscellaneous Research
+
+`Wuerstchen` sounds like a nice image-generation model;... for people with 16gb+ vram Nvidia cards. As I only have a 12gb 3080ti and Intel's a770 doesn't have anything besides LLMs ported to it,
+a more resource-efficient image generator should be found. This thing looks promising!
+ - https://github.com/Gadersd/stable-diffusion-burn/tree/main?tab=readme-ov-file#stable-diffusion-burn
+
 
 
 
