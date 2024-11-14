@@ -121,7 +121,7 @@ async fn main() {
 
     let prompt = "A cowboy exploring a computer cave";
     let unconditional_guidance_scale: f64 = 6.5;
-    let n_steps: usize = 24;
+    let n_steps: usize = 16;
     let output_image_prefix = "out-";
 
     let unconditional_context = sd.unconditional_context(&tokenizer);
@@ -134,16 +134,16 @@ async fn main() {
         unconditional_guidance_scale,
         n_steps,
     );
-    save_images(&images, output_image_prefix, 512, 512).unwrap_or_else(|err| {
-        eprintln!("Error saving image: {}", err);
-        process::exit(1);
-    });
+
+    if let Err(e) = save_images(&images, output_image_prefix, 512, 512) {
+        eprintln!("{:?}", e);
+    }
 
     let image_end = std::time::Instant::now();
 
     println!("Total Time: {}", utils::duration_to_display_str(&(image_end - main_start)));
-    println!("LLM Generation Time: {}", utils::duration_to_display_str(&(llm_start - llm_end)));
-    println!("Image Generation Time: {}", utils::duration_to_display_str(&(image_start - image_end)));
+    println!("LLM Generation Time: {}", utils::duration_to_display_str(&(llm_end - llm_start)));
+    println!("Image Generation Time: {}", utils::duration_to_display_str(&(image_end - image_start)));
 
 
 
