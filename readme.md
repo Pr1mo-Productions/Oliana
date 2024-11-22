@@ -4,6 +4,10 @@
 This repo is a single rust binary which exercises the library [`floneum`](https://github.com/floneum/floneum)
 to perform important tasks that will eventually go into a more well-thought-out game.
 
+# Game Design Ideas
+
+
+
 # Source Code
 
 As with most rust programs, execution begins at `src/main.rs` `main()`.
