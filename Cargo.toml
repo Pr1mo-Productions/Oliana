@@ -29,13 +29,15 @@ tokio =       { version = "1.41", features = ["full"] }
 num_cpus =    { version = "1.16" }
 serde =       { version = "1", features = ["derive"] }
 clap =        { version = "4", features = ["derive"] }
-ort =         { version = "1.16", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic" ] }
+ort =         { version = "1.16", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic", "default"] }
+#ort =         { version = "2.0.0-rc.9", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic", "default"] }
+ndarray =     { version = "0.16" } # required as dependency of ort to invoke ort::inputs![]
 dirs =        { version = "5.0" }
 indicatif =   { version = "0.17" }
-
-# HTTP/file format dependencies
-downloader = { version = "0.2" }
-image =      { version = "0.24" }
+tokenizers =  { version = "0.20" }
+downloader =  { version = "0.2" }
+image =       { version = "0.24" }
+rand =        { version = "0.8" }
 
 
 # This block specified dependencies ONLY compiled in on linux

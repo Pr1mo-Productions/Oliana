@@ -56,7 +56,18 @@ macro_rules! eloc {
     };
 }
 
+#[macro_export]
+macro_rules! eloc_str {
+    () => {
+        |e| crate::utils::LocatedError { inner: format!("{:?}", e).into(), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() }
+    };
+    ($msg:expr) => {
+        |e| crate::utils::LocatedError { inner: format!("{:?}", e).into(), file: file!(), line: line!(), column: column!(), addtl_msg: $msg }
+    };
+}
+
 pub(crate) use eloc;
+pub(crate) use eloc_str;
 
 
 pub async fn get_cache_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
