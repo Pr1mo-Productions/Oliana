@@ -44,7 +44,7 @@ async fn main_async(cli_args: &cli::Args) -> Result<(), Box<dyn std::error::Erro
 
   if cli_args.list_connected_hardware  {
     eprintln!("= = = = Compute Devices = = = =");
-    let names = ai::get_compute_device_names().await?;
+    let names = ai::get_compute_device_names(cli_args).await?;
     for name in &names {
         eprintln!(" - {name}");
     }
@@ -52,13 +52,13 @@ async fn main_async(cli_args: &cli::Args) -> Result<(), Box<dyn std::error::Erro
 
   if let Some(test_llm_prompt) = &cli_args.test_llm_prompt {
     eprintln!("Prompt: {test_llm_prompt}");
-    let ai_response_txt = ai::run_oneshot_llm_prompt(&test_llm_prompt).await?;
+    let ai_response_txt = ai::run_oneshot_llm_prompt(cli_args, &test_llm_prompt).await?;
     eprintln!("Response: {ai_response_txt}");
   }
 
   if let Some(test_image_prompt) = &cli_args.test_image_prompt {
     eprintln!("Prompt: {test_image_prompt}");
-    let out_file_path = ai::run_oneshot_ai_img_prompt(&test_image_prompt, "out.png").await?;
+    let out_file_path = ai::run_oneshot_ai_img_prompt(cli_args, &test_image_prompt, "out.png").await?;
     eprintln!("Open the output AI-generated file {out_file_path}");
   }
 

@@ -7,13 +7,14 @@
 // selection of GPU, CPU, and NPU compute devices
 
 pub async fn load_ort_session(
+  cli_args: &crate::cli::Args,
   local_onnx_file_path: impl Into<std::path::PathBuf>,
   remote_onnx_download_url: &str
 ) -> Result<ort::Session, Box<dyn std::error::Error>> {
 
 
   let local_onnx_file_path: std::path::PathBuf = local_onnx_file_path.into();
-  let local_onnx_file_path = download_file_ifne(&local_onnx_file_path, remote_onnx_download_url).await?;
+  let local_onnx_file_path = download_file_ifne(cli_args, &local_onnx_file_path, remote_onnx_download_url).await?;
 
   let mut session = ort::Session::builder()?
     .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
@@ -25,13 +26,14 @@ pub async fn load_ort_session(
 
 
 
-pub async fn get_compute_device_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub async fn get_compute_device_names(cli_args: &crate::cli::Args) -> Result<Vec<String>, Box<dyn std::error::Error>> {
   use ort::ExecutionProvider;
 
 
   let mut compute_device_names: Vec<String> = vec![];
 
   let ort_session = load_ort_session(
+    cli_args,
     crate::utils::get_cache_file("gpt2.onnx").await?,
     "https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/ex_models/gpt2.onnx"
   ).await?;
@@ -91,17 +93,19 @@ pub async fn get_compute_device_names() -> Result<Vec<String>, Box<dyn std::erro
   Ok(compute_device_names)
 }
 
-pub async fn run_oneshot_llm_prompt(prompt_txt: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &str) -> Result<String, Box<dyn std::error::Error>> {
   use rand::prelude::*;
 
   let mut reply = String::new();
 
   let ort_session = load_ort_session(
+    cli_args,
     crate::utils::get_cache_file("gpt2.onnx").await?,
     "https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/ex_models/gpt2.onnx"
   ).await?;
 
   let tokenizer_json_f = download_file_ifne(
+    cli_args,
     crate::utils::get_cache_file("gpt2-tokenizer.json").await?,
     "https://huggingface.co/openai-community/gpt2/raw/main/tokenizer.json"
   ).await?;
@@ -154,7 +158,7 @@ pub async fn run_oneshot_llm_prompt(prompt_txt: &str) -> Result<String, Box<dyn 
 
 
 
-pub async fn run_oneshot_ai_img_prompt(prompt_txt: &str, out_file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn run_oneshot_ai_img_prompt(cli_args: &crate::cli::Args, prompt_txt: &str, out_file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
 
 
 
@@ -164,13 +168,16 @@ pub async fn run_oneshot_ai_img_prompt(prompt_txt: &str, out_file_path: &str) ->
 
 
 pub async fn download_file_ifne(
+  cli_args: &crate::cli::Args,
   local_file_path: impl Into<std::path::PathBuf>,
   remote_download_url: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
 
   let local_file_path = local_file_path.into();
 
   if !tokio::fs::try_exists(&local_file_path).await? {
-    eprintln!("Downloading {} to {}", remote_download_url, &local_file_path.to_string_lossy() );
+    if cli_args.verbose > 0 {
+      eprintln!("Downloading {} to {}", remote_download_url, &local_file_path.to_string_lossy() );
+    }
     let mut downloader = downloader::Downloader::builder()
           .download_folder( local_file_path.parent().ok_or_else(|| return "No Parent Directory for passed file to be downloaded!" ).map_err(crate::utils::eloc!())? )
           .parallel_requests(2)
@@ -188,7 +195,9 @@ pub async fn download_file_ifne(
 
   }
   else {
-    eprintln!("Found already-downloaded file {}", &local_file_path.to_string_lossy() );
+    if cli_args.verbose > 0 {
+      eprintln!("Found already-downloaded file {}", &local_file_path.to_string_lossy() );
+    }
   }
 
   Ok(local_file_path)
