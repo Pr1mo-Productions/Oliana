@@ -1,0 +1,77 @@
+
+/* Currently using hues from https://www.colourlovers.com/palette/4957347/Chilling_Out */
+
+#background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  height: auto;
+  z-index 0;
+}
+
+#main {
+  position: absolute;
+  top: 20vh;
+  left: 20vw;
+  right: 20vw;
+  width: 60vw;
+  z-index 100;
+  min-height: 100vh;
+  height: 600pt;
+
+  font-family: Sans-Serif;
+  line-height: 1.6;
+  font-size: 16pt;
+
+  background: rgb(21,83,121);
+  background: linear-gradient(0deg, rgba(21,83,121,1) 0%, rgba(127,140,180,0.6) 60%, rgba(178,202,223,0.4) 100%);
+
+  backdrop-filter: blur(12pt);
+  box-shadow: 0 0 4pt black;
+
+  /*border: 0.5px solid black;*/
+  border-radius: 38pt 38pt 0pt 0pt;
+
+  padding: 2pt 28pt 2pt 28pt;
+}
+
+h1, h2, h3 {
+  line-height: 1.2;
+}
+
+/*
+  Here we consolidate all light/dark specific theme data.
+  Write light-themed values first and override in the prefers-color-scheme: dark block.
+*/
+html, body {
+  background: rgba(213,183,161,1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background: rgba(107,73,32,1);
+  }
+}
+
+
+
+/*
+  Here we overwrite all desktop specific layout data w/ a mobile equivelant.
+  It's not consolidated b/c I like the ^^ organization at the top, and mobile is an after-thought here.
+*/
+@media (max-width: 1100px) {
+  #background-image {
+    top: 0;
+    left: -20vw;
+    right: -20vw;
+    width: 140vw;
+  }
+  #main {
+    top: 20vh;
+    left: 3vw;
+    right: 3vw;
+    width: calc((94vw - 28pt) - 28pt); /* 28pt accounts for interior padding */
+  }
+}
