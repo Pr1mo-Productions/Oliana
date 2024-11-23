@@ -95,6 +95,7 @@ pub async fn get_compute_device_names(cli_args: &crate::cli::Args) -> Result<Vec
 
 pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &str) -> Result<String, Box<dyn std::error::Error>> {
   use rand::prelude::*;
+  use rand::SeedableRng;
 
   let mut reply = String::new();
 
@@ -120,7 +121,11 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
   /// Top_K -> Sample from the k most likely next tokens at each step. Lower k focuses on higher probability tokens.
   const TOP_K: usize = 5;
 
-  let mut rng = rand::thread_rng();
+  let mut rng: Box<dyn rand::RngCore> = if let Some(random_seed) = cli_args.random_seed {
+    Box::new(rand::rngs::StdRng::seed_from_u64(random_seed as u64))
+  } else {
+    Box::new(rand::thread_rng())
+  };
 
   for _ in 0..GEN_TOKENS {
     // Raw tensor construction takes a tuple of (dimensions, data).

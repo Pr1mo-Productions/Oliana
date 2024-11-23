@@ -7,6 +7,10 @@ pub struct Args {
     #[arg(short = 'v', long, action = clap::ArgAction::Count)]
     pub verbose: u8,
 
+    /// If set, every random-number generator will use this as their seed to allow completely deterministic AI runs.
+    #[arg(short, long)]
+    pub random_seed: Option<usize>,
+
     /// If this flag is passed the program outputs connected compute hardware and exits.
     #[arg(long, action=clap::ArgAction::SetTrue)]
     pub list_connected_hardware: bool,
