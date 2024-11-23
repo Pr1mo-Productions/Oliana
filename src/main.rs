@@ -42,14 +42,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
 // subroutines if they return Err().
 async fn main_async(cli_args: &cli::Args) -> Result<(), Box<dyn std::error::Error>>  {
 
-  if cli_args.verbose > 0 {
+  if cli_args.list_connected_hardware  {
     eprintln!("= = = = Compute Devices = = = =");
-    let names = ai::get_openvino_compute_device_names()?;
+    let names = ai::get_compute_device_names()?;
     for name in &names {
         eprintln!(" - {name}");
     }
-    tokio::time::sleep(std::time::Duration::from_millis(5 * 1000)).await;
   }
+
+  if let Some(test_llm_prompt) = &cli_args.test_llm_prompt {
+    eprintln!("Prompt: {test_llm_prompt}");
+    let ai_response_txt = ai::run_oneshot_llm_prompt(&test_llm_prompt)?;
+    eprintln!("Response: {ai_response_txt}");
+  }
+
+  if let Some(test_image_prompt) = &cli_args.test_image_prompt {
+    eprintln!("Prompt: {test_image_prompt}");
+    let out_file_path = ai::run_oneshot_ai_img_prompt(&test_image_prompt, "out.png")?;
+    eprintln!("Open the output AI-generated file {out_file_path}");
+  }
+
+
+  // Exit if the test tools were invoked
+  if cli_args.test_llm_prompt.is_some() || cli_args.test_image_prompt.is_some() || cli_args.list_connected_hardware {
+    return Ok(());
+  }
+
+
+  // Regular game logic
 
   gui::open_gui_window().await?;
 

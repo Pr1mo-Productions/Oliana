@@ -7,4 +7,16 @@ pub struct Args {
     #[arg(short = 'v', long, action = clap::ArgAction::Count)]
     pub verbose: u8,
 
+    /// If this flag is passed the program outputs connected compute hardware and exits.
+    #[arg(long, action=clap::ArgAction::SetTrue)]
+    pub list_connected_hardware: bool,
+
+    /// Pass a string to prompt the game's LLM agent w/ a string, compute result, and exit.
+    #[arg(long)]
+    pub test_llm_prompt: Option<String>,
+
+    /// Pass a string to prompt the game's Image AI agent w/ a string, compute result, and exit. Image will always be saved to "out.png" in the CWD.
+    #[arg(long)]
+    pub test_image_prompt: Option<String>
+
 }

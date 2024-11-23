@@ -12,37 +12,29 @@ path = "src/main.rs"
 
 
 [features]
-# To build with kalosm's "cuda" feature, compile with `cargo build --features cuda --release`
+# To build with ort's "cuda" feature, compile with `cargo build --features cuda --release`
 # Host needs CUDA dev tools installed
-cuda = ["kalosm/cuda"]
-# To build with kalosm's "mkl" feature, compile with `cargo build --features mkl --release`
+cuda = ["ort/cuda"]
+# To build with ort's "openvino" feature, compile with `cargo build --features openvino --release`
 # Host needs intel-oneapi-mkl / Intel MKL dev tools installed
-mkl = ["kalosm/mkl"]
+openvino = ["ort/openvino"]
+# To build with ort's "coreml" feature, compile with `cargo build --features coreml --release`
+# Host needs to be an Apple machine to use Apple's CoreML accelerators.
+coreml = ["ort/coreml"]
+
 
 [dependencies]
 # Runtime/hardware/OS control dependencies
-tokio =      { version = "1.41", features = ["full"] }
-num_cpus =   { version = "1.16" }
-serde =      { version = "1", features = ["derive"] }
-clap =       { version = "4", features = ["derive"] }
-openvino =   { version = "0.8", features = ["runtime-linking"] }
+tokio =       { version = "1.41", features = ["full"] }
+num_cpus =    { version = "1.16" }
+serde =       { version = "1", features = ["derive"] }
+clap =        { version = "4", features = ["derive"] }
+ort =         { version = "1.16", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic" ] }
 
 
 # HTTP/file format dependencies
 downloader = { version = "0.2" }
 image =      { version = "0.24" }
-
-
-# AI-related depenencies
-kalosm = { git = "https://github.com/floneum/floneum", version = "0.3", features = ["full"] }
-
-stablediffusion = { git = "https://github.com/Gadersd/stable-diffusion-burn", version = "0.1", features = [ ] }
-burn = "0.14.0"
-burn-ndarray = "0.14.0"
-burn-tch = "0.14.0"
-burn-autodiff = "0.14.0"
-tch = "0.15.0"
-rust_tokenizers = "8.1.0"
 
 
 # This block specified dependencies ONLY compiled in on linux
