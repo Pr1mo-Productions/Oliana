@@ -3,6 +3,14 @@ name = "hello-ai-game"
 version = "0.1.0"
 edition = "2021"
 
+# This described the default way to find & compile src/main.rs, but
+# we specify it manually here b/c it'll be easier to extent to a src/web_app.rs or src/for_phones.rs
+# and compile an entirely different platform target from the same (or mostly the same) code.
+[[bin]]
+name = "hello-ai-game"
+path = "src/main.rs"
+
+
 [features]
 # To build with kalosm's "cuda" feature, compile with `cargo build --features cuda --release`
 # Host needs CUDA dev tools installed
@@ -12,12 +20,24 @@ cuda = ["kalosm/cuda"]
 mkl = ["kalosm/mkl"]
 
 [dependencies]
+# Runtime/hardware/OS control dependencies
+tokio =      { version = "1.41", features = ["full"] }
+num_cpus =   { version = "1.16" }
+serde =      { version = "1", features = ["derive"] }
+clap =       { version = "4", features = ["derive"] }
+
+# Graphics dependencies
+bevy =       { version = "0.14", features = [] }
+
+# HTTP/file format dependencies
+downloader = { version = "0.2" }
+image =      { version = "0.24" }
+
+
+# AI-related depenencies
 kalosm = { git = "https://github.com/floneum/floneum", version = "0.3", features = ["full"] }
-tokio = { version = "1.41", features = ["full"] }
 
 stablediffusion = { git = "https://github.com/Gadersd/stable-diffusion-burn", version = "0.1", features = [ ] }
-downloader = "0.2"
-image = "0.24"
 burn = "0.14.0"
 burn-ndarray = "0.14.0"
 burn-tch = "0.14.0"
