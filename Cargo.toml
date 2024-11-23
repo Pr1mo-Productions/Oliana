@@ -30,7 +30,8 @@ num_cpus =    { version = "1.16" }
 serde =       { version = "1", features = ["derive"] }
 clap =        { version = "4", features = ["derive"] }
 ort =         { version = "1.16", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic" ] }
-
+dirs =        { version = "5.0" }
+indicatif =   { version = "0.17" }
 
 # HTTP/file format dependencies
 downloader = { version = "0.2" }
