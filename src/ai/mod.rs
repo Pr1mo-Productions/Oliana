@@ -15,16 +15,10 @@ pub async fn load_ort_session(
   let local_onnx_file_path: std::path::PathBuf = local_onnx_file_path.into();
   let local_onnx_file_path = download_file_ifne(&local_onnx_file_path, remote_onnx_download_url).await?;
 
-  let environment = ort::environment::Environment::builder()
-    .with_name("test")
-    .with_log_level(ort::LoggingLevel::Verbose)
-    .build().map_err(crate::utils::eloc!())?
-    .into_arc();
-
-  let mut session = ort::session::SessionBuilder::new(&environment)?
-    .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
+  let mut session = ort::session::Session::builder()?
+    .with_optimization_level(ort::session::builder::GraphOptimizationLevel::Level1)?
     .with_intra_threads(1)?
-    .with_model_from_file(local_onnx_file_path).map_err(crate::utils::eloc!())?;
+    .commit_from_file(local_onnx_file_path).map_err(crate::utils::eloc!())?;
 
   Ok(session)
 }
@@ -32,6 +26,8 @@ pub async fn load_ort_session(
 
 
 pub async fn get_compute_device_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+  use ort::execution_providers::ExecutionProvider;
+
   let mut compute_device_names: Vec<String> = vec![];
 
   let ort_session = load_ort_session(
@@ -39,53 +35,53 @@ pub async fn get_compute_device_names() -> Result<Vec<String>, Box<dyn std::erro
     "https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/ex_models/gpt2.onnx"
   ).await?;
 
-  let ep_cpu = ort::ExecutionProvider::CPU( ort::execution_providers::CPUExecutionProviderOptions::default() );
-  if ep_cpu.is_available() {
+  let ep_cpu = ort::execution_providers::cpu::CPUExecutionProvider::default();
+  if ep_cpu.is_available()? {
     compute_device_names.push(format!("{}", ep_cpu.as_str() ));
   }
 
-  let ep_cuda = ort::ExecutionProvider::CUDA( ort::execution_providers::CUDAExecutionProviderOptions::default() );
-  if ep_cuda.is_available() {
+  let ep_cuda = ort::execution_providers::cuda::CUDAExecutionProvider::default();
+  if ep_cuda.is_available()? {
     compute_device_names.push(format!("{}", ep_cuda.as_str() ));
   }
 
-  let ep_tensor_rt = ort::ExecutionProvider::TensorRT( ort::execution_providers::TensorRTExecutionProviderOptions::default() );
-  if ep_tensor_rt.is_available() {
+  let ep_tensor_rt = ort::execution_providers::TensorRTExecutionProvider::default();
+  if ep_tensor_rt.is_available()? {
     compute_device_names.push(format!("{}", ep_tensor_rt.as_str() ));
   }
 
-  let ep_openvino = ort::ExecutionProvider::OpenVINO( ort::execution_providers::OpenVINOExecutionProviderOptions::default() );
-  if ep_openvino.is_available() {
+  let ep_openvino = ort::execution_providers::OpenVINOExecutionProvider::default();
+  if ep_openvino.is_available()? {
     compute_device_names.push(format!("{}", ep_openvino.as_str() ));
   }
 
-  let ep_acl = ort::ExecutionProvider::ACL( ort::execution_providers::ACLExecutionProviderOptions::default() );
-  if ep_acl.is_available() {
+  let ep_acl = ort::execution_providers::acl::ACLExecutionProvider::default();
+  if ep_acl.is_available()? {
     compute_device_names.push(format!("{}", ep_acl.as_str() ));
   }
 
-  let ep_onednn = ort::ExecutionProvider::OneDNN( ort::execution_providers::OneDNNExecutionProviderOptions::default() );
-  if ep_onednn.is_available() {
+  let ep_onednn = ort::execution_providers::onednn::OneDNNExecutionProvider::default();
+  if ep_onednn.is_available()? {
     compute_device_names.push(format!("{}", ep_onednn.as_str() ));
   }
 
-  let ep_coreml = ort::ExecutionProvider::CoreML( ort::execution_providers::CoreMLExecutionProviderOptions::default() );
-  if ep_coreml.is_available() {
+  let ep_coreml = ort::execution_providers::coreml::CoreMLExecutionProvider::default();
+  if ep_coreml.is_available()? {
     compute_device_names.push(format!("{}", ep_coreml.as_str() ));
   }
 
-  let ep_directml = ort::ExecutionProvider::DirectML( ort::execution_providers::DirectMLExecutionProviderOptions::default() );
-  if ep_directml.is_available() {
+  let ep_directml = ort::execution_providers::directml::DirectMLExecutionProvider::default();
+  if ep_directml.is_available()? {
     compute_device_names.push(format!("{}", ep_directml.as_str() ));
   }
 
-  let ep_nnapi = ort::ExecutionProvider::NNAPI( ort::execution_providers::NNAPIExecutionProviderOptions::default() );
-  if ep_nnapi.is_available() {
+  let ep_nnapi = ort::execution_providers::nnapi::NNAPIExecutionProvider::default();
+  if ep_nnapi.is_available()? {
     compute_device_names.push(format!("{}", ep_nnapi.as_str() ));
   }
 
-  let ep_rocm = ort::ExecutionProvider::ROCm( ort::execution_providers::ROCmExecutionProviderOptions::default() );
-  if ep_rocm.is_available() {
+  let ep_rocm = ort::execution_providers::rocm::ROCmExecutionProvider::default();
+  if ep_rocm.is_available()? {
     compute_device_names.push(format!("{}", ep_rocm.as_str() ));
   }
 

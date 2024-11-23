@@ -19,6 +19,8 @@ As with most rust programs, execution begins at `src/main.rs` `main()`.
 __Required__
 
  - [Rust](https://rustup.rs/)
+ - [onnxruntime](https://onnxruntime.ai/)
+    - Arch: `sudo pacman -S onnxruntime-opt openmpi`
 
 __Optional__
 
