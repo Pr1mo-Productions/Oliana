@@ -45,7 +45,8 @@ You can directly compile & run in one step via `cargo run --release`
  - [ ] `floneum/kalosm` download models automatically to `???` - is there a mechanism to control where these files go so when we build an installer we can ship 1 big component instead of downloading the world?
  - [ ] What magic needs to be invoked for `floneum/kalosm` GPU support? This will allow big hardware to run the game fast!
  - [ ] Of the models or model formats (`gguf`, `ggml`, `safetensors` et al) integrated into `floneum/kalosm`, which models would be best for various game mechanics? What are the hardware-requirement / performance trade-offs?
- - [ ] There exist many graphics libraries, and rust has bindings to a lot of them. Which graphics system makes sense for a videogame, and do we want to focus local-only or play with a web-based design to serve graphics as HTML instead of native buttons? (https://github.com/rust-unofficial/awesome-rust?tabq=readme-ov-file#gui)
+ - [x] There exist many graphics libraries, and rust has bindings to a lot of them. Which graphics system makes sense for a videogame, and do we want to focus local-only or play with a web-based design to serve graphics as HTML instead of native buttons? (https://github.com/rust-unofficial/awesome-rust?tabq=readme-ov-file#gui)
+    - Jeffrey decided on using [`bevy`](https://bevyengine.org/) because it's got capabilities out the wazoo; definitely a larger game engine than what we need but it's cross-platform and has tons of hooks to customize everything.
  - [ ] for long-term or plot-related LLM memory - what existing tools make sense to use? (https://github.com/jondot/awesome-rust-llm?tab=readme-ov-file#llm-memory)
 
 # Miscellaneous Research
