@@ -3738,6 +3738,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_filter"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f2c92ceda6ceec50f43169f9ee8424fe2db276791afde7b2cd8bc084cb376ab"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e13fa619b91fb2381732789fc5de83b45675e882f66623b7d8cb4f643017018d"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "humantime",
+ "log",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5049,6 +5072,7 @@ dependencies = [
  "image 0.24.9",
  "kalosm",
  "num_cpus",
+ "openvino",
  "rust_tokenizers",
  "serde",
  "stablediffusion",
@@ -7563,6 +7587,38 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "openvino"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f03a664ab0b6917131f5c1a787795fa4d19ad6a334caf9c96284453abdf23fd"
+dependencies = [
+ "openvino-finder",
+ "openvino-sys",
+]
+
+[[package]]
+name = "openvino-finder"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34d6bbb3e00d9ad3cd60bca1341665a9cfb2b6764df37c58d921627368ae32fc"
+dependencies = [
+ "cfg-if 1.0.0",
+ "log",
+]
+
+[[package]]
+name = "openvino-sys"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04315994236727c3573f7e8d8bf857e93ff373ee2e063f08aa78aceac58e3bc5"
+dependencies = [
+ "env_logger",
+ "libloading 0.8.5",
+ "once_cell",
+ "openvino-finder",
 ]
 
 [[package]]

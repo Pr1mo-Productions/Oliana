@@ -25,6 +25,8 @@ tokio =      { version = "1.41", features = ["full"] }
 num_cpus =   { version = "1.16" }
 serde =      { version = "1", features = ["derive"] }
 clap =       { version = "4", features = ["derive"] }
+openvino =   { version = "0.8", features = ["runtime-linking"] }
+
 
 # HTTP/file format dependencies
 downloader = { version = "0.2" }

@@ -11,6 +11,7 @@ use clap::Parser;
 mod utils;  // src/utils.rs
 mod cli;    // src/cli/mod.rs
 mod gui;    // src/gui/mod.rs
+mod ai;     // src/ai/mod.rs
 
 // Main simply reads command-line arguments,
 // builds a tokio async runtime, and passes state to that.
@@ -40,6 +41,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
 // a manager of the GUI, any hardware access we need, and will need a little logic to be able to re-start
 // subroutines if they return Err().
 async fn main_async(cli_args: &cli::Args) -> Result<(), Box<dyn std::error::Error>>  {
+
+  if cli_args.verbose > 0 {
+    eprintln!("= = = = Compute Devices = = = =");
+    let names = ai::get_openvino_compute_device_names()?;
+    for name in &names {
+        eprintln!(" - {name}");
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(5 * 1000)).await;
+  }
 
   gui::open_gui_window().await?;
 
