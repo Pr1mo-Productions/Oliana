@@ -59,32 +59,57 @@ pub async fn get_compute_device_names() -> Result<Vec<String>, Box<dyn std::erro
     "https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/ex_models/gpt2.onnx"
   ).await?;
 
-
-/*
-  let ov = openvino::Core::new()?;
-  let mut devices = ov.available_devices()?;
-
-  devices.sort();
-  let mut explicit_device_num = std::collections::HashMap::<&openvino::DeviceType, isize>::new();
-
-  for device in &devices {
-    let dev_type_count = explicit_device_num.entry(device).or_insert(-1);
-    *dev_type_count += 1;
-
-    let mut name = format!("{:?}.{}", device, explicit_device_num[device]);
-    match ov.get_property(device, &openvino::PropertyKey::DeviceFullName) {
-      Ok(val) => {
-        name = format!("{name} {val}");
-      }
-      Err(e) => {
-        name = format!("{name} {e:?}");
-      }
-    }
-
-    compute_device_names.push(name);
+  let ep_cpu = ort::ExecutionProvider::CPU( ort::execution_providers::CPUExecutionProviderOptions::default() );
+  if ep_cpu.is_available() {
+    compute_device_names.push(format!("{}", ep_cpu.as_str() ));
   }
-*/
 
+  let ep_cuda = ort::ExecutionProvider::CUDA( ort::execution_providers::CUDAExecutionProviderOptions::default() );
+  if ep_cuda.is_available() {
+    compute_device_names.push(format!("{}", ep_cuda.as_str() ));
+  }
+
+  let ep_tensor_rt = ort::ExecutionProvider::TensorRT( ort::execution_providers::TensorRTExecutionProviderOptions::default() );
+  if ep_tensor_rt.is_available() {
+    compute_device_names.push(format!("{}", ep_tensor_rt.as_str() ));
+  }
+
+  let ep_openvino = ort::ExecutionProvider::OpenVINO( ort::execution_providers::OpenVINOExecutionProviderOptions::default() );
+  if ep_openvino.is_available() {
+    compute_device_names.push(format!("{}", ep_openvino.as_str() ));
+  }
+
+  let ep_acl = ort::ExecutionProvider::ACL( ort::execution_providers::ACLExecutionProviderOptions::default() );
+  if ep_acl.is_available() {
+    compute_device_names.push(format!("{}", ep_acl.as_str() ));
+  }
+
+  let ep_onednn = ort::ExecutionProvider::OneDNN( ort::execution_providers::OneDNNExecutionProviderOptions::default() );
+  if ep_onednn.is_available() {
+    compute_device_names.push(format!("{}", ep_onednn.as_str() ));
+  }
+
+  let ep_coreml = ort::ExecutionProvider::CoreML( ort::execution_providers::CoreMLExecutionProviderOptions::default() );
+  if ep_coreml.is_available() {
+    compute_device_names.push(format!("{}", ep_coreml.as_str() ));
+  }
+
+  let ep_directml = ort::ExecutionProvider::DirectML( ort::execution_providers::DirectMLExecutionProviderOptions::default() );
+  if ep_directml.is_available() {
+    compute_device_names.push(format!("{}", ep_directml.as_str() ));
+  }
+
+  let ep_nnapi = ort::ExecutionProvider::NNAPI( ort::execution_providers::NNAPIExecutionProviderOptions::default() );
+  if ep_nnapi.is_available() {
+    compute_device_names.push(format!("{}", ep_nnapi.as_str() ));
+  }
+
+  let ep_rocm = ort::ExecutionProvider::ROCm( ort::execution_providers::ROCmExecutionProviderOptions::default() );
+  if ep_rocm.is_available() {
+    compute_device_names.push(format!("{}", ep_rocm.as_str() ));
+  }
+
+  // TODO paste the others in here?
 
   Ok(compute_device_names)
 }
