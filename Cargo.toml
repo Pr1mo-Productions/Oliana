@@ -26,9 +26,6 @@ num_cpus =   { version = "1.16" }
 serde =      { version = "1", features = ["derive"] }
 clap =       { version = "4", features = ["derive"] }
 
-# Graphics dependencies
-bevy =       { version = "0.14", features = [] }
-
 # HTTP/file format dependencies
 downloader = { version = "0.2" }
 image =      { version = "0.24" }
@@ -45,4 +42,19 @@ burn-autodiff = "0.14.0"
 tch = "0.15.0"
 rust_tokenizers = "8.1.0"
 
+
+# This block specified dependencies ONLY compiled in on linux
+[target.'cfg(target_os = "linux")'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.14", features = ["wayland"] }
+
+# This block specified dependencies ONLY compiled in on macos
+[target.'cfg(target_os = "macos")'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.14", features = [ ] }
+
+# This block specified dependencies ONLY compiled in on windows
+[target.'cfg(windows)'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.14", features = [ ] }
 
