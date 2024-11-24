@@ -109,7 +109,6 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
       eprintln!("[ Info ] Using LLM runtime ORT (Rust ONNX bindings)");
     }
     let ort_session = if let Some(user_specified_onnx_file) = &cli_args.llm_onnx_file {
-
       load_ort_session(
         cli_args,
         user_specified_onnx_file,
@@ -153,7 +152,13 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
     for _ in 0..GEN_TOKENS {
       // Raw tensor construction takes a tuple of (dimensions, data).
       // The model expects our input to have shape [B, _, S]
-      let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens));
+
+      let input = if cli_args.llm_onnx_file.is_some() {
+        (vec![1, tokens.len() as i64], std::sync::Arc::clone(&tokens)) // Changed in support of the converted Qwen2.5-1.5B-Instruct model, but we don't know a good generalization or if this is even correct. Still hunting exceptions in libonnxruntime.so
+      } else {
+        (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens)) // Original w/ the downloaded single-file .onnx model
+      };
+
       let outputs = ort_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?).map_err(crate::utils::eloc!())?;
       let (dim, mut probabilities) = outputs["output1"].try_extract_raw_tensor().map_err(crate::utils::eloc!())?;
 
