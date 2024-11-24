@@ -1,8 +1,7 @@
 
 # Hello-AI
 
-This repo is a single rust binary which exercises the library [`floneum`](https://github.com/floneum/floneum)
-to perform important tasks that will eventually go into a more well-thought-out game.
+This repo is a single rust binary tests AI-related and game-interface tasks that will eventually go into a more well-thought-out game.
 
 [Landing Page](https://jeffrey-p-mcateer.github.io/hello-ai-game/) (content set in `docs/index.html`)
 
