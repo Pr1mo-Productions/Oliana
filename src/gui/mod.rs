@@ -179,8 +179,9 @@ fn setup(mut commands: Commands) {
                 style: Style {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::End, // End here means "Bottom"
+                    justify_content: JustifyContent::Start, // Start here means "Left"
+                    padding: UiRect::all(Val::Px(4.0)),
                     ..default()
                 },
                 ..default()
@@ -193,9 +194,9 @@ fn setup(mut commands: Commands) {
             parent.spawn((
                 NodeBundle {
                     style: Style {
-                        width: Val::Px(400.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        padding: UiRect::all(Val::Px(5.0)),
+                        width: Val::Percent(80.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        padding: UiRect::all(Val::Px(4.0)),
                         ..default()
                     },
                     border_color: BORDER_COLOR_INACTIVE.into(),
@@ -207,11 +208,11 @@ fn setup(mut commands: Commands) {
                 },
                 TextInputBundle::default()
                     .with_text_style(TextStyle {
-                        font_size: 40.,
+                        font_size: 36.0,
                         color: TEXT_COLOR,
                         ..default()
                     })
-                    .with_placeholder("Click Me", None)
+                    //.with_placeholder("Click to Type Text", None)
                     .with_inactive(true),
             ));
         });
