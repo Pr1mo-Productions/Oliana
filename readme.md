@@ -45,7 +45,7 @@ You can directly compile & run in one step via `cargo run --release`
 
 # Design Decisions Log
 
- - We're using [ORT](https://ort.pyke.io/) for local in-process LLM inferencing and [Ollama](https://ollama.com/) for local out-of-process LLM inferencing.
+ - We're using [ORT](https://ort.pyke.io/) `2.0` for local in-process LLM inferencing and [Ollama](https://ollama.com/) for local out-of-process LLM inferencing.
     - Design reason for ORT: ONNX looks like a solid bet for long-term model ingestion, management, and is designed to support text and image-based AI models.
     - Design reason for Ollama: Ollama just makes throwing pre-existing models at things easy; I see Ollama as a gateway to testing models which we will then manually convert to ONNX files for the game.
  - We're using [Bevy](https://bevyengine.org/) as our graphics framework; it has more capabilities than we will need and is cross-platform, all we will need to do is learn the engine and map our deisgns into Bevy's structures.
