@@ -45,10 +45,9 @@ pub async fn open_gui_window() -> Result<(), Box<dyn std::error::Error>>  {
             (
                 change_title,
                 toggle_theme,
-                toggle_cursor,
+                //toggle_cursor,
                 toggle_vsync,
                 toggle_window_controls,
-                cycle_cursor_icon,
                 switch_level,
                 make_visible,
             ),
@@ -142,6 +141,7 @@ fn change_title(mut windows: Query<&mut Window>, time: Res<Time>) {
     );
 }
 
+/* // Useful - this is how we lock the cursor if we ever want WASD-style movement mechanics w/ cursor for camera control
 fn toggle_cursor(mut windows: Query<&mut Window>, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::Space) {
         let mut window = windows.single_mut();
@@ -152,7 +152,8 @@ fn toggle_cursor(mut windows: Query<&mut Window>, input: Res<ButtonInput<KeyCode
             CursorGrabMode::Locked | CursorGrabMode::Confined => CursorGrabMode::None,
         };
     }
-}
+}*/
+
 
 // This system will toggle the color theme used by the window
 fn toggle_theme(mut windows: Query<&mut Window>, input: Res<ButtonInput<KeyCode>>) {
@@ -166,35 +167,6 @@ fn toggle_theme(mut windows: Query<&mut Window>, input: Res<ButtonInput<KeyCode>
             };
         }
     }
-}
-
-/// This system cycles the cursor's icon through a small set of icons when clicking
-fn cycle_cursor_icon(
-    mut windows: Query<&mut Window>,
-    input: Res<ButtonInput<MouseButton>>,
-    mut index: Local<usize>,
-) {
-    let mut window = windows.single_mut();
-
-    const ICONS: &[CursorIcon] = &[
-        CursorIcon::Default,
-        CursorIcon::Pointer,
-        CursorIcon::Wait,
-        CursorIcon::Text,
-        CursorIcon::Copy,
-    ];
-
-    if input.just_pressed(MouseButton::Left) {
-        *index = (*index + 1) % ICONS.len();
-    } else if input.just_pressed(MouseButton::Right) {
-        *index = if *index == 0 {
-            ICONS.len() - 1
-        } else {
-            *index - 1
-        };
-    }
-
-    window.cursor.icon = ICONS[*index];
 }
 
 
