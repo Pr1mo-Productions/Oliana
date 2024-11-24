@@ -59,6 +59,21 @@ You can directly compile & run in one step via `cargo run --release`
 a more resource-efficient image generator should be found. This thing looks promising!
  - https://github.com/Gadersd/stable-diffusion-burn/tree/main?tab=readme-ov-file#stable-diffusion-burn
 
+# Utility scripts
+
+
+## `oneshot-convert-hf-model-to-onnx.py`
+
+`utils/oneshot-convert-hf-model-to-onnx.py` exists to convert a hugginface repo to `*.onnx` files; it does not need any dependencies besides `git`, `python`, and the ability for `git-lfs` to be installed.
+
+Usage:
+
+```bash
+python utils/oneshot-convert-hf-model-to-onnx.py https://huggingface.co/Qwen/Qwen2.5-7B-Instruct
+
+```
+
+
 
 
 
