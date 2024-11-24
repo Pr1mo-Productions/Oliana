@@ -99,6 +99,7 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
 
   let mut reply = String::new();
 
+  /*
   let ort_session = load_ort_session(
     cli_args,
     crate::utils::get_cache_file("gpt2.onnx").await?,
@@ -156,6 +157,65 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
     //print!("{}", token_str);
     //stdout.flush().unwrap();
   }
+  */
+
+  // Try to connect to default, if cannot spawn "ollama serve"
+  let ollama = ollama_rs::Ollama::default();
+
+  match ollama.list_local_models().await {
+    Ok(local_models) => {
+      if cli_args.verbose > 1 {
+        eprintln!("Ollama already running, models = {:#?}", local_models);
+      }
+    }
+    Err(e) => {
+      if cli_args.verbose > 1 {
+        eprintln!("{:#?}", crate::utils::LocatedError { inner: Box::new(e), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() });
+      }
+
+      eprintln!("Executing 'ollama serve' as a background process...");
+
+      tokio::process::Command::new("ollama")
+        .args(&["serve"])
+        .kill_on_drop(false) // Prevents tokio from reaping process on Drop
+        .spawn().map_err(crate::utils::eloc!())?;
+
+      // Delay for 750ms or so
+      tokio::time::sleep(std::time::Duration::from_millis(750)).await;
+    }
+  }
+
+  let local_models = ollama.list_local_models().await.map_err(crate::utils::eloc!())?;
+  // eprintln!("Ollama models = {:#?}", local_models);
+
+  /*let qwen2_5_7b_model_file = download_file_ifne(
+    cli_args,
+    crate::utils::get_cache_file("qwen2_5_7b.Modelfile").await?,
+    "https://huggingface.co/openai-community/gpt2/raw/main/tokenizer.json"
+  ).await?;*/
+  // ^^ todo research so we can control our own downloads
+
+  const OLLAMA_MODEL_NAME: &'static str = "qwen2.5:7b";
+
+  match ollama.show_model_info(OLLAMA_MODEL_NAME.to_string()).await {
+    Ok(model_info) => { /* unused */ },
+    Err(e) => {
+      if cli_args.verbose > 1 {
+        eprintln!("{:#?}", crate::utils::LocatedError { inner: Box::new(e), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() });
+      }
+      // Spawn off a download
+      eprintln!("Telling ollama to pull the model {}...", OLLAMA_MODEL_NAME);
+      ollama.pull_model(OLLAMA_MODEL_NAME.to_string(), true).await?;
+      eprintln!("Done pulling {}!", OLLAMA_MODEL_NAME);
+    }
+  }
+
+  let res = ollama.generate(ollama_rs::generation::completion::request::GenerationRequest::new(OLLAMA_MODEL_NAME.to_string(), prompt_txt.to_string())).await;
+
+  if let Ok(res) = res {
+      reply = res.response;
+  }
+
 
   Ok(reply)
 }

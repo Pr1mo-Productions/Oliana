@@ -19,6 +19,18 @@ mod ai;     // src/ai/mod.rs
 fn main() -> Result<(), Box<dyn std::error::Error>>  {
   let cli_args = cli::Args::parse();
 
+  // Silence the logs of some of our dependencies
+  if cli_args.verbose < 2 {
+    let mut log_builder = env_logger::Builder::new();
+    log_builder
+        .filter(None, log::LevelFilter::Off) // log level for your module
+        .filter_module("reqwest",   log::LevelFilter::Off)  // log level for reqwest
+        .filter_module("ollama_rs", log::LevelFilter::Off)  // log level for ollama
+        .filter_module("ollama-rs", log::LevelFilter::Off)  // log level for ollama
+        .filter_module("ollama",    log::LevelFilter::Off)  // log level for ollama
+        .init();
+  }
+
   let rt  = tokio::runtime::Builder::new_multi_thread()
     .worker_threads(std::cmp::max(2, num_cpus::get_physical())) // Use all host cores, unless single-cored in which case pretend to have 2
     .thread_stack_size(8 * 1024 * 1024)
