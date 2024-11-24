@@ -67,7 +67,7 @@ os.environ['PYTHONPATH'] = qwen2_export_pyenv
 hf_local_repo = os.path.join(workdir, hf_url_name)
 clone_or_update(hf_url_to_convert, hf_local_repo)
 
-output_onnx_folder = os.path.join(workdir, 'output_onnx')
+output_onnx_folder = os.path.join(qwen2_export_dir, 'output_onnx')
 if os.path.exists(output_onnx_folder):
   yn = input(f'{output_onnx_folder} already exists, delete before export? ')
   if not 'y' in yn.lower():
@@ -79,7 +79,7 @@ if os.path.exists(output_onnx_folder):
 
 os.makedirs(output_onnx_folder, exist_ok=True)
 
-cmd_in(workdir, 'python',
+cmd_in(qwen2_export_dir, 'python',
   os.path.join(qwen2_export_dir, 'export_onnx_qwen.py'),
   hf_local_repo
 )

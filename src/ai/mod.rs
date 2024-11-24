@@ -6,26 +6,6 @@
 // offers a uniform input for many types of models and allows fairly transparent runtime
 // selection of GPU, CPU, and NPU compute devices
 
-pub async fn load_ort_session(
-  cli_args: &crate::cli::Args,
-  local_onnx_file_path: impl Into<std::path::PathBuf>,
-  remote_onnx_download_url: &str
-) -> Result<ort::Session, Box<dyn std::error::Error>> {
-
-
-  let local_onnx_file_path: std::path::PathBuf = local_onnx_file_path.into();
-  let local_onnx_file_path = download_file_ifne(cli_args, &local_onnx_file_path, remote_onnx_download_url).await?;
-
-  let mut session = ort::Session::builder()?
-    .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
-    .with_intra_threads(1)?
-    .commit_from_file(local_onnx_file_path).map_err(crate::utils::eloc!())?;
-
-  Ok(session)
-}
-
-
-
 pub async fn get_compute_device_names(cli_args: &crate::cli::Args) -> Result<Vec<String>, Box<dyn std::error::Error>> {
   use ort::ExecutionProvider;
 
@@ -108,7 +88,8 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
     if cli_args.verbose > 0 {
       eprintln!("[ Info ] Using LLM runtime ORT (Rust ONNX bindings)");
     }
-    let ort_session = if let Some(user_specified_onnx_file) = &cli_args.llm_onnx_file {
+
+    /*let ort_session = if let Some(user_specified_onnx_file) = &cli_args.llm_onnx_file {
       load_ort_session(
         cli_args,
         user_specified_onnx_file,
@@ -120,6 +101,19 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
         crate::utils::get_cache_file("gpt2.onnx").await.map_err(crate::utils::eloc!())?,
         "https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/ex_models/gpt2.onnx"
       ).await.map_err(crate::utils::eloc!())?
+    };*/
+
+    let ort_inferencer = if let Some(user_specified_onnx_file_or_dir) = &cli_args.llm_onnx_file {
+      ORTInferencer::init_from_local_file_or_folder(cli_args, user_specified_onnx_file_or_dir).await?
+    }
+    else {
+      let local_onnx_file_path = crate::utils::get_cache_file("gpt2.onnx").await.map_err(crate::utils::eloc!())?;
+      let local_onnx_file_path = download_file_ifne(
+        cli_args,
+        &local_onnx_file_path,
+        "https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/ex_models/gpt2.onnx" // TODO maybe read from env & dynamically adjust file path upstairs? idk, GPT2 kinda sux.
+      ).await?;
+      ORTInferencer::init_from_local_file_or_folder(cli_args, local_onnx_file_path).await?
     };
 
     let tokenizer_json_f = if let Some(user_specified_tokenizer_json_file) = &cli_args.llm_tokenizer_json_file {
@@ -153,13 +147,18 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
       // Raw tensor construction takes a tuple of (dimensions, data).
       // The model expects our input to have shape [B, _, S]
 
+      let outputs = ort_inferencer.run_inference(std::sync::Arc::clone(&tokens), ).await.map_err(crate::utils::eloc!())?;
+
+      /*
       let input = if cli_args.llm_onnx_file.is_some() {
         (vec![1, tokens.len() as i64], std::sync::Arc::clone(&tokens)) // Changed in support of the converted Qwen2.5-1.5B-Instruct model, but we don't know a good generalization or if this is even correct. Still hunting exceptions in libonnxruntime.so
       } else {
         (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens)) // Original w/ the downloaded single-file .onnx model
       };
 
-      let outputs = ort_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?).map_err(crate::utils::eloc!())?;
+      let outputs = ort_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?)?;
+      */
+
       let (dim, mut probabilities) = outputs["output1"].try_extract_raw_tensor().map_err(crate::utils::eloc!())?;
 
       // The output tensor will have shape [B, _, S + 1, V]
@@ -309,3 +308,138 @@ pub async fn download_file_ifne(
 
   Ok(local_file_path)
 }
+
+
+pub async fn load_ort_session(
+  cli_args: &crate::cli::Args,
+  local_onnx_file_path: impl Into<std::path::PathBuf>,
+  remote_onnx_download_url: &str
+) -> Result<ort::Session, Box<dyn std::error::Error>> {
+
+
+  let local_onnx_file_path: std::path::PathBuf = local_onnx_file_path.into();
+  let local_onnx_file_path = download_file_ifne(cli_args, &local_onnx_file_path, remote_onnx_download_url).await?;
+
+  let mut session = ort::Session::builder()?
+    .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
+    .with_intra_threads(1)?
+    .commit_from_file(local_onnx_file_path).map_err(crate::utils::eloc!())?;
+
+  Ok(session)
+}
+
+
+// Used to keep track of custom logic necessary for various types of ONNX model layouts
+pub enum ORTInferencer {
+  DirectModel      { session: ort::Session },
+  LanguageToLogits { language_session: ort::Session, logits_session: ort::Session },
+}
+
+impl ORTInferencer {
+  pub async fn init_from_local_file_or_folder(cli_args: &crate::cli::Args, pb:  impl Into<std::path::PathBuf>) -> Result<Self, Box<dyn std::error::Error>> {
+    let pb = pb.into();
+    let pb_as_a_string: String = pb.clone().into_os_string().into_string().map_err(crate::utils::eloc_str!())?; // Yes this is a type-management sin, no I don't care we can keep 2x paths and an error-to-string around.
+
+    if pb.is_file() && pb_as_a_string.to_lowercase().ends_with(".onnx") {
+      let mut session = ort::Session::builder()?
+        .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
+        .with_intra_threads(1)?
+        .commit_from_file(pb_as_a_string).map_err(crate::utils::eloc!())?;
+      Ok(
+        ORTInferencer::DirectModel {
+          session: session
+        }
+      )
+    }
+    else if pb.is_dir() {
+      // Scan for the first ".onnx" file w/ "language" in name
+      let mut language_onnx_path: String = String::new();
+      let mut logits_onnx_path: String = String::new();
+
+      let mut dir_reader = tokio::fs::read_dir(&pb).await?;
+      loop {
+        if let Some(dir_f) = dir_reader.next_entry().await? {
+          let dir_f_str = dir_f.file_name().into_string().map_err(crate::utils::eloc_str!())?;
+          let lower_dir_f_str = dir_f_str.to_lowercase();
+          if lower_dir_f_str.ends_with(".onnx") && lower_dir_f_str.contains("language") {
+            language_onnx_path = dir_f.path().into_os_string().into_string().map_err(crate::utils::eloc_str!())?;
+            break;
+          }
+        }
+        else {
+          break;
+        }
+      }
+      let mut dir_reader = tokio::fs::read_dir(&pb).await?;
+      loop {
+        if let Some(dir_f) = dir_reader.next_entry().await? {
+          let dir_f_str = dir_f.file_name().into_string().map_err(crate::utils::eloc_str!())?;
+          let lower_dir_f_str = dir_f_str.to_lowercase();
+          if lower_dir_f_str.ends_with(".onnx") && lower_dir_f_str.contains("logit") {
+            logits_onnx_path = dir_f.path().into_os_string().into_string().map_err(crate::utils::eloc_str!())?;
+            break;
+          }
+        }
+        else {
+          break;
+        }
+      }
+
+      if language_onnx_path.len() < 1 {
+        return Err(format!("The directory {:?} is misisng a language-model.onnx file, cannot construct an ORT session from it!", &pb_as_a_string).into());
+      }
+      if logits_onnx_path.len() < 1 {
+        return Err(format!("The directory {:?} is misisng a logits-model.onnx file, cannot construct an ORT session from it!", &pb_as_a_string).into());
+      }
+
+      if cli_args.verbose > 0 {
+        eprintln!("Selected language_onnx_path = {:?}", language_onnx_path);
+        eprintln!("Selected logits_onnx_path = {:?}", logits_onnx_path);
+      }
+
+      let mut language_session = ort::Session::builder()?
+        .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
+        .with_intra_threads(1)?
+        .commit_from_file(language_onnx_path).map_err(crate::utils::eloc!())?;
+
+      let mut logits_session = ort::Session::builder()?
+        .with_optimization_level(ort::GraphOptimizationLevel::Level1)?
+        .with_intra_threads(1)?
+        .commit_from_file(logits_onnx_path).map_err(crate::utils::eloc!())?;
+
+      Ok(
+        ORTInferencer::LanguageToLogits {
+          language_session: language_session,
+          logits_session: logits_session
+        }
+      )
+    }
+    else {
+      Err(format!("The file {:?} is neither a file or a directory, cannot construct an ORT session from it!", &pb_as_a_string).into())
+    }
+  }
+
+  pub async fn run_inference(&self, tokens: std::sync::Arc<Box<[i64]>>)  -> Result<ort::SessionOutputs, Box<dyn std::error::Error>>  {
+    match self {
+      ORTInferencer::DirectModel { session } => {
+        let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens));
+        let outputs = session.run(ort::inputs![input].map_err(crate::utils::eloc!())?)?;
+        Ok(outputs)
+      }
+      ORTInferencer::LanguageToLogits { language_session, logits_session  } => {
+
+        let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens));
+        let outputs = language_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?)?;
+
+        // Lotsa TODOs here
+
+        //let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&outputs));
+        //let outputs = logits_session.run(ort::inputs![outputs].map_err(crate::utils::eloc!())?)?;
+
+        Ok(outputs)
+      }
+    }
+  }
+
+}
+
