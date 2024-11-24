@@ -12,6 +12,8 @@ path = "src/main.rs"
 
 
 [features]
+default = ["llm_ort", "cuda"]
+
 # To build with ort's "cuda" feature, compile with `cargo build --features cuda --release`
 # Host needs CUDA dev tools installed
 cuda = ["ort/cuda"]
@@ -22,6 +24,9 @@ openvino = ["ort/openvino"]
 # Host needs to be an Apple machine to use Apple's CoreML accelerators.
 coreml = ["ort/coreml"]
 
+# We use these internally to swap out LLM backends; ollama requires the user to install ollama.exe separately for now.
+llm_ollama = []
+llm_ort = []
 
 [dependencies]
 # Runtime/hardware/OS control dependencies
