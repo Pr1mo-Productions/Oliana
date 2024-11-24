@@ -41,9 +41,15 @@ impl std::error::Error for LocatedError {
 
 impl std::fmt::Display for LocatedError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} from {}:{} ({})", self.inner, self.file, self.line, &self.addtl_msg)
+        if self.addtl_msg.len() > 0 {
+            write!(f, "{} from {}:{} ({})", self.inner, self.file, self.line, &self.addtl_msg)
+        }
+        else {
+            write!(f, "{} from {}:{}", self.inner, self.file, self.line)
+        }
     }
 }
+
 
 // The core idea: convenience macro to create the structure
 #[macro_export]
