@@ -154,7 +154,7 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
       // Raw tensor construction takes a tuple of (dimensions, data).
       // The model expects our input to have shape [B, _, S]
       let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens));
-      let outputs = ort_session.run(ort::inputs![input]?)?;
+      let outputs = ort_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?).map_err(crate::utils::eloc!())?;
       let (dim, mut probabilities) = outputs["output1"].try_extract_raw_tensor().map_err(crate::utils::eloc!())?;
 
       // The output tensor will have shape [B, _, S + 1, V]
