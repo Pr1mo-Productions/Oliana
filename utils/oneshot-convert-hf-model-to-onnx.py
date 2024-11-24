@@ -54,9 +54,37 @@ os.makedirs(workdir, exist_ok=True)
 qwen2_export_dir = os.path.join(workdir, 'qwen2-export-onnx')
 clone_or_update('https://github.com/w3ng-git/qwen2-export-onnx.git', qwen2_export_dir)
 
+qwen2_export_pyenv = os.path.join(workdir, 'qwen2-export-onnx-pyenv')
+os.makedirs(qwen2_export_pyenv, exist_ok=True)
+
+if not os.path.exists(os.path.join(qwen2_export_pyenv, 'transformers')) or not os.path.exists(os.path.join(qwen2_export_pyenv, 'onnx')):
+  cmd('python', '-m', 'pip', 'install', f'--target={qwen2_export_pyenv}', 'transformers', 'onnx')
+if not os.path.exists(os.path.join(qwen2_export_pyenv, 'torch')):
+  cmd('python', '-m', 'pip', 'install', f'--target={qwen2_export_pyenv}', '--pre', '--upgrade', 'torch', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/nightly/cpu')
+
+os.environ['PYTHONPATH'] = qwen2_export_pyenv
+
 hf_local_repo = os.path.join(workdir, hf_url_name)
 clone_or_update(hf_url_to_convert, hf_local_repo)
 
+output_onnx_folder = os.path.join(workdir, 'output_onnx')
+if os.path.exists(output_onnx_folder):
+  yn = input(f'{output_onnx_folder} already exists, delete before export? ')
+  if not 'y' in yn.lower():
+    print(f'Exiting w/o deleting {output_onnx_folder}...')
+    sys.exit(1)
+  else:
+    # y was in yn.lower()
+    shutil.rmtree(output_onnx_folder)
 
+os.makedirs(output_onnx_folder, exist_ok=True)
 
+cmd_in(workdir, 'python',
+  os.path.join(qwen2_export_dir, 'export_onnx_qwen.py'),
+  hf_local_repo
+)
+
+print()
+print(f'The model from {hf_local_repo} now has ONNX runtime files located at {output_onnx_folder}')
+print()
 
