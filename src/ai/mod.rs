@@ -145,20 +145,9 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
 
     for _ in 0..GEN_TOKENS {
       // Raw tensor construction takes a tuple of (dimensions, data).
-      // The model expects our input to have shape [B, _, S]
+      // !!! only true for gpt2.onnx >> !!! The model expects our input to have shape [B, _, S]
 
-      let outputs = ort_inferencer.run_inference(std::sync::Arc::clone(&tokens), ).await.map_err(crate::utils::eloc!())?;
-
-      /*
-      let input = if cli_args.llm_onnx_file.is_some() {
-        (vec![1, tokens.len() as i64], std::sync::Arc::clone(&tokens)) // Changed in support of the converted Qwen2.5-1.5B-Instruct model, but we don't know a good generalization or if this is even correct. Still hunting exceptions in libonnxruntime.so
-      } else {
-        (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens)) // Original w/ the downloaded single-file .onnx model
-      };
-
-      let outputs = ort_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?)?;
-      */
-
+      let outputs = ort_inferencer.run_inference_step(std::sync::Arc::clone(&tokens)).await.map_err(crate::utils::eloc!())?;
       let (dim, mut probabilities) = outputs["output1"].try_extract_raw_tensor().map_err(crate::utils::eloc!())?;
 
       // The output tensor will have shape [B, _, S + 1, V]
@@ -419,7 +408,7 @@ impl ORTInferencer {
     }
   }
 
-  pub async fn run_inference(&self, tokens: std::sync::Arc<Box<[i64]>>)  -> Result<ort::SessionOutputs, Box<dyn std::error::Error>>  {
+  pub async fn run_inference_step(&self, tokens: std::sync::Arc<Box<[i64]>>)  -> Result<ort::SessionOutputs, Box<dyn std::error::Error>>  {
     match self {
       ORTInferencer::DirectModel { session } => {
         let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens));
@@ -428,13 +417,14 @@ impl ORTInferencer {
       }
       ORTInferencer::LanguageToLogits { language_session, logits_session  } => {
 
-        let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&tokens));
-        let outputs = language_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?)?;
-
         // Lotsa TODOs here
+        eprintln!("tokens.len() = {}", tokens.len());
 
-        //let input = (vec![1, 1, tokens.len() as i64], std::sync::Arc::clone(&outputs));
-        //let outputs = logits_session.run(ort::inputs![outputs].map_err(crate::utils::eloc!())?)?;
+        let input = (vec![tokens.len() as i64, 1], std::sync::Arc::clone(&tokens));
+        let outputs = language_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?).map_err(crate::utils::eloc!())?;
+
+        let input = (vec![tokens.len() as i64, tokens.len() as i64 * tokens.len() as i64], std::sync::Arc::clone(&tokens));
+        let outputs = logits_session.run(ort::inputs![input].map_err(crate::utils::eloc!())?).map_err(crate::utils::eloc!())?;
 
         Ok(outputs)
       }
