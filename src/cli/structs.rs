@@ -21,6 +21,14 @@ pub struct Args {
 
     /// Pass a string to prompt the game's Image AI agent w/ a string, compute result, and exit. Image will always be saved to "out.png" in the CWD.
     #[arg(long)]
-    pub test_image_prompt: Option<String>
+    pub test_image_prompt: Option<String>,
+
+    /// Pass a file path to a custom *.onnx file and load that for LLM prompting
+    #[arg(long)]
+    pub llm_onnx_file: Option<String>,
+    /// Pass a path to a tokenizer.json file to use that when translating prompt text and responses to/from text
+    #[arg(long)]
+    pub llm_tokenizer_json_file: Option<String>,
+
 
 }
