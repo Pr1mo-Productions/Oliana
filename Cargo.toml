@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 
 [features]
-default = ["llm_ort", "cuda"]
+default = ["cuda"]
 
 # To build with ort's "cuda" feature, compile with `cargo build --features cuda --release`
 # Host needs CUDA dev tools installed

@@ -102,8 +102,12 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
   #[cfg(all(feature = "llm_ollama", feature = "llm_ort"))]
   compile_error!("Do NOT specify both feature llm_ollama and llm_ort at the same time. They are mutually exclusive and only one should be specified!");
 
-  #[cfg(feature = "llm_ort")]
+  // Either the feature llm_ort was specified, OR neither llm_ort or llm_ollama was specified. (AKA this is the default impl)
+  #[cfg(any(feature = "llm_ort", all(not(feature = "llm_ort"), not(feature = "llm_ollama"))))]
   {
+    if cli_args.verbose > 0 {
+      eprintln!("[ Info ] Using LLM runtime ORT (Rust ONNX bindings)");
+    }
     let ort_session = load_ort_session(
       cli_args,
       crate::utils::get_cache_file("gpt2.onnx").await?,
@@ -165,6 +169,9 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
 
   #[cfg(feature = "llm_ollama")]
   {
+    if cli_args.verbose > 0 {
+      eprintln!("[ Info ] Using LLM runtime ollama (requires ollama.exe installed)");
+    }
     // Try to connect to default, if cannot spawn "ollama serve"
     let ollama = ollama_rs::Ollama::default();
 
