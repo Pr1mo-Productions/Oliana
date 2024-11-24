@@ -1,7 +1,12 @@
-*.png
-SDv1-4.mpk
 
-*vocab*txt
+work
+work/
+out
+out/
+bin
+bin/
+build
+build/
 
 
 
