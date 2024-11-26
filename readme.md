@@ -69,6 +69,11 @@ You can directly compile & run in one step via `cargo run --release`
 a more resource-efficient image generator should be found. This thing looks promising!
  - https://github.com/Gadersd/stable-diffusion-burn/tree/main?tab=readme-ov-file#stable-diffusion-burn
 
+This looks like a good beginning for vector databases & long-term information storage & retrieval LLM-style:
+
+ - https://github.com/Mintplex-Labs/anything-llm
+
+
 # Utility scripts
 
 
