@@ -1,9 +1,8 @@
 
-# Hello-AI
+# Oliana
 
-This repo is a single rust binary tests AI-related and game-interface tasks that will eventually go into a more well-thought-out game.
-
-[Landing Page](https://jeffrey-p-mcateer.github.io/hello-ai-game/) (content set in `docs/index.html`)
+This repo contains the game runtime for Oliana! Non-techie details on the [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`),
+techie details below.
 
 # Game Design Ideas
 
@@ -38,7 +37,7 @@ cargo build --release
 
 # Running
 
-After compiling, run `./target/release/hello-ai-game[.exe]`
+After compiling, run `./target/release/Oliana[.exe]`
 
 You can directly compile & run in one step via `cargo run --release`
 
@@ -48,7 +47,7 @@ You can directly compile & run in one step via `cargo run --release`
     - Design reason for ORT: ONNX looks like a solid bet for long-term model ingestion, management, and is designed to support text and image-based AI models.
     - Design reason for Ollama: Ollama just makes throwing pre-existing models at things easy; I see Ollama as a gateway to testing models which we will then manually convert to ONNX files for the game.
  - We're using [Bevy](https://bevyengine.org/) as our graphics framework; it has more capabilities than we will need and is cross-platform, all we will need to do is learn the engine and map our deisgns into Bevy's structures.
- - We're using Github Pages as our [Landing Page](https://jeffrey-p-mcateer.github.io/hello-ai-game/) (content set in `docs/index.html`) because it's free and easy to setup.
+ - We're using Github Pages as our [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`) because it's free and easy to setup.
 
 
 

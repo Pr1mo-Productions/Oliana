@@ -7,34 +7,48 @@
     <link rel="stylesheet" type="text/css" href="style.css" />
   </head>
   <body>
-    <img id="background-image" src="https://picsum.photos/1600/600" />
+    <img id="background-image" />
     <main id="main">
-      <h1>Hello AI Game!</h1>
+      <h1>Oliana</h1>
       <p>
-        <b>Hello-AI-Game</b> is in desperate need of a name and vision!
+        <b>Oliana</b> is a videogame set in <redacted>████████</redacted> where players interact with AI-powered characters to <redacted>████████</redacted> and build a peaceful world for all to live in.
+        <br/>
+        Details forthcoming!
+      </p>
+      <p>
+        Still on the immediate to-do list:
       </p>
       <ul>
-        <li>Name!</li>
         <li>Logo!</li>
-        <li>Dumb Engineering Ideas!</li>
+        <li><s>Dumb Engineering Ideas!</s> A Github CI pipeline! (because who wants code, we want <code>.exe</code>s! /s)</li>
         <li>Storyboards about characters w/ empty holes in the plot for AI to fill in!</li>
-        <li>That's really it actually</li>
       </ul>
       <br/>
       <h2>Meet The Team</h2>
       <div style="display:inline-block;text-align:center;line-height:1.0;">
 
         <div style="display:inline-block;width:224pt;">
-          <img src="https://avatar.iran.liara.run/public/boy?cb=1" style="width:196pt;height:196pt;border-radius:999pt;border:1px solid black;display:inline-block;"/>
-          <p style="display:block;text-align:center;width:224pt;">Some Guy!</p>
+          <img src="https://github.com/becerratops.png" style="width:196pt;height:196pt;border-radius:999pt;border:1px solid black;display:inline-block;"/>
+          <p style="display:block;text-align:center;width:224pt;">Adam</p>
         </div>
 
         <div style="display:inline-block;width:224pt;">
-          <img src="https://avatar.iran.liara.run/public/boy?cb=2" style="width:196pt;height:196pt;border-radius:999pt;border:1px solid black;display:inline-block;"/>
-          <p style="display:block;text-align:center;width:224pt;">Some Other Guy!</p>
+          <img src="https://github.com/Jeffrey-P-McAteer.png" style="width:196pt;height:196pt;border-radius:999pt;border:1px solid black;display:inline-block;"/>
+          <p style="display:block;text-align:center;width:224pt;">Jeffrey</p>
         </div>
 
       </div>
     </main>
+<!-- yes yes we're doing the ugly mid-web JS thing; it's an easy way to randomly select #background-image.src -_- -->
+<script>
+// Arrow function to return a random item from an array
+const random_item = items => items[Math.floor(Math.random() * items.length)];
+
+document.getElementById('background-image').src = random_item([
+  'img/ai-forest-01.png', 'img/ai-forest-02.png', 'img/ai-forest-03.png', 'img/ai-forest-04.png',
+  'img/ai-cliffs-01.png', 'img/ai-cliffs-02.png', 'img/ai-cliffs-03.png', 'img/ai-cliffs-04.png'
+]);
+
+</script>
   </body>
 </html>

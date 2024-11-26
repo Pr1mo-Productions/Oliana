@@ -15,7 +15,7 @@ const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 
-pub async fn open_gui_window() -> Result<(), Box<dyn std::error::Error>>  {
+pub async fn open_gui_window() -> Result<(), Box<dyn std::error::Error>> {
   App::new()
     .add_plugins((
             DefaultPlugins.set(WindowPlugin {
@@ -56,6 +56,7 @@ pub async fn open_gui_window() -> Result<(), Box<dyn std::error::Error>>  {
         .add_systems(Startup, setup)
         .add_systems(Update, focus.before(TextInputSystem))
         .add_systems(Update, text_listener.after(TextInputSystem))
+        .add_systems(Startup, create_ai_engine)
        .run();
 
    Ok(())
@@ -208,7 +209,7 @@ fn setup(mut commands: Commands) {
                 },
                 TextInputBundle::default()
                     .with_text_style(TextStyle {
-                        font_size: 36.0,
+                        font_size: 32.0,
                         color: TEXT_COLOR,
                         ..default()
                     })
@@ -216,6 +217,34 @@ fn setup(mut commands: Commands) {
                     .with_inactive(true),
             ));
         });
+
+    // Text with one section
+    commands.spawn((
+        // Create a TextBundle that has a Text with a single section.
+        TextBundle::from_section(
+            // Accepts a `String` or any type that converts into a `String`, such as `&str`
+            "hello\nbevy!",
+            TextStyle {
+                // This font is loaded and will be used instead of the default font.
+                // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                font_size: 32.0,
+                ..default()
+            },
+        ) // Set the justification of the Text
+        .with_text_justify(JustifyText::Center)
+        // Set the style of the TextBundle itself.
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: Val::Px(4.0),
+            left: Val::Px(4.0),
+            ..default()
+        }),
+        //ColorText,
+    ));
+
+
+
+
 }
 
 fn focus(
@@ -237,8 +266,118 @@ fn focus(
     }
 }
 
-fn text_listener(mut events: EventReader<TextInputSubmitEvent>) {
+fn text_listener(mut events: EventReader<TextInputSubmitEvent>, ) {
     for event in events.read() {
         info!("{:?} submitted: {}", event.entity, event.value);
     }
 }
+
+fn create_ai_engine(mut commands: Commands) {
+    commands.spawn(AI_Engine::new());
+}
+
+const OLLAMA_MODEL_NAME: &'static str = "qwen2.5:7b";
+
+#[derive(Component)]
+struct AI_Engine {
+    pub ollama_inst: ollama_rs::Ollama,
+    pub have_verified_qwen2_5_7b_up: bool,
+    pub streaming_reply_tokens: std::sync::Arc<std::sync::RwLock<Vec<String>>>,
+}
+
+impl AI_Engine {
+    pub fn new() -> Self {
+        let mut s = Self {
+            ollama_inst: ollama_rs::Ollama::default(),
+            have_verified_qwen2_5_7b_up: false,
+            streaming_reply_tokens: std::sync::Arc::new(vec![].into()),
+            //self_ref: None,
+        };
+        //s.self_ref = Some(std::sync::Arc::new(s));
+        s
+    }
+
+    pub fn begin_prompting(&mut self, prompt_txt: &str) {
+        let handle = tokio::runtime::Handle::current(); // Safety: Bevy runs in one of tokio's async methods, therefore MUST have an EnterGuard setup.
+
+        handle.block_on(self.ensure_qwen2_5_7b_up());
+
+        let ollama_dupe_client = self.ollama_inst.clone();
+        let prompt_txt_one = prompt_txt.to_string();
+        let streaming_reply_tokens_jh = self.streaming_reply_tokens.clone();
+        let join_handle = handle.spawn({
+            async move {
+                match ollama_dupe_client.generate(ollama_rs::generation::completion::request::GenerationRequest::new(OLLAMA_MODEL_NAME.to_string(), prompt_txt_one)).await {
+                    Ok(res) => {
+                        streaming_reply_tokens_jh.write().expect("No writable ref available").push(res.response);
+                    }
+                    Err(e) => {
+                        eprintln!("{:?}", e);
+                        streaming_reply_tokens_jh.write().expect("No writable ref available").push(format!("{:?}", e));
+                    }
+                }
+            }
+        });
+
+    }
+
+    pub async fn ensure_qwen2_5_7b_up(&mut self) {
+        if self.have_verified_qwen2_5_7b_up {
+            return;
+        }
+        if let Err(e) = self.ensure_qwen2_5_7b_up_errs().await {
+            eprintln!("{:?}", e);
+        }
+    }
+    pub async fn ensure_qwen2_5_7b_up_errs(&mut self) -> Result<(), Box<dyn std::error::Error>>  {
+        match self.ollama_inst.list_local_models().await {
+          Ok(local_models) => {
+            /* Nop */
+          }
+          Err(e) => {
+            eprintln!("{:#?}", crate::utils::LocatedError { inner: Box::new(e), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() });
+
+            eprintln!("Executing 'ollama serve' as a background process...");
+
+            tokio::process::Command::new("ollama")
+              .args(&["serve"])
+              .kill_on_drop(false) // Prevents tokio from reaping process on Drop
+              .spawn().map_err(crate::utils::eloc!())?;
+
+            // Delay for 750ms or so
+            tokio::time::sleep(std::time::Duration::from_millis(750)).await;
+          }
+        }
+
+        let local_models = self.ollama_inst.list_local_models().await.map_err(crate::utils::eloc!())?;
+        // eprintln!("Ollama models = {:#?}", local_models);
+
+        /*let qwen2_5_7b_model_file = download_file_ifne(
+          cli_args,
+          crate::utils::get_cache_file("qwen2_5_7b.Modelfile").await?,
+          "https://huggingface.co/openai-community/gpt2/raw/main/tokenizer.json"
+        ).await?;*/
+        // ^^ todo research so we can control our own downloads
+
+        match self.ollama_inst.show_model_info(OLLAMA_MODEL_NAME.to_string()).await {
+          Ok(model_info) => { /* unused */ },
+          Err(e) => {
+            eprintln!("{:#?}", crate::utils::LocatedError { inner: Box::new(e), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() });
+            // Spawn off a download
+            eprintln!("Telling ollama to pull the model {}...", OLLAMA_MODEL_NAME);
+            self.ollama_inst.pull_model(OLLAMA_MODEL_NAME.to_string(), true).await?;
+            eprintln!("Done pulling {}!", OLLAMA_MODEL_NAME);
+          }
+        }
+
+        self.have_verified_qwen2_5_7b_up = true;
+
+        Ok(())
+    }
+}
+
+
+
+
+
+

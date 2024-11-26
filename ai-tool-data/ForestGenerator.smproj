@@ -1,0 +1,127 @@
+{
+  "Version": 2,
+  "ProjectType": "TextToImage",
+  "State": {
+    "Modules": {
+      "$values": [
+        {
+          "$values": [
+            {
+              "Scale": 2,
+              "SelectedUpscaler": {
+                "Name": "nearest-exact",
+                "Type": 1,
+                "DownloadableResource": null,
+                "IsDownloadable": false
+              },
+              "$type": "Upscaler"
+            },
+            {
+              "Modules": {
+                "$values": []
+              },
+              "IsRefinerStepsEnabled": false,
+              "Steps": 20,
+              "RefinerSteps": 10,
+              "IsDenoiseStrengthEnabled": true,
+              "DenoiseStrength": 0.699999988079071,
+              "IsCfgScaleEnabled": false,
+              "CfgScale": 7,
+              "IsDimensionsEnabled": false,
+              "Width": 512,
+              "Height": 512,
+              "IsSamplerSelectionEnabled": false,
+              "SelectedSampler": {
+                "Name": "euler_ancestral"
+              },
+              "IsSchedulerSelectionEnabled": false,
+              "SelectedScheduler": {
+                "Name": "normal"
+              },
+              "InheritPrimarySamplerAddons": true,
+              "EnableAddons": true,
+              "$type": "Sampler"
+            }
+          ],
+          "IsEnabled": false,
+          "$type": "HiresFixModule"
+        },
+        {
+          "$values": [
+            {
+              "Scale": 4,
+              "SelectedUpscaler": {
+                "Name": "RealESRGAN_x4plus_anime_6B.pth",
+                "Type": 2,
+                "DownloadableResource": null,
+                "IsDownloadable": false
+              },
+              "$type": "Upscaler"
+            }
+          ],
+          "IsEnabled": true,
+          "$type": "UpscalerModule"
+        }
+      ]
+    },
+    "Model": {
+      "SelectedModelName": "cetusMix_Whalefall2.safetensors",
+      "SelectedRefinerName": null,
+      "SelectedVaeName": "@default",
+      "SelectedClip1Name": "@none",
+      "SelectedClip2Name": "@none",
+      "ModelLoader": 0,
+      "ClipSkip": 1,
+      "IsVaeSelectionEnabled": false,
+      "IsRefinerSelectionEnabled": false,
+      "IsClipSkipEnabled": false,
+      "IsExtraNetworksEnabled": false,
+      "IsModelLoaderSelectionEnabled": false,
+      "ExtraNetworks": {
+        "$values": []
+      }
+    },
+    "Sampler": {
+      "Modules": {
+        "$values": []
+      },
+      "IsRefinerStepsEnabled": false,
+      "Steps": 48,
+      "RefinerSteps": 10,
+      "IsDenoiseStrengthEnabled": false,
+      "DenoiseStrength": 1,
+      "IsCfgScaleEnabled": true,
+      "CfgScale": 7,
+      "IsDimensionsEnabled": true,
+      "Width": 1024,
+      "Height": 1024,
+      "IsSamplerSelectionEnabled": true,
+      "SelectedSampler": {
+        "Name": "euler_ancestral"
+      },
+      "IsSchedulerSelectionEnabled": true,
+      "SelectedScheduler": {
+        "Name": "normal"
+      },
+      "InheritPrimarySamplerAddons": true,
+      "EnableAddons": true
+    },
+    "Prompt": {
+      "Prompt": "There is a small grove of trees surrounding a rock in the middle of a forest. Morning sunlight shines through tree branches and illuminates dew drops on the grass. Flowers bloom near the rock. A dozen small faries with wings fly around the flowers and illuminate them. A single deer with antlers is visible through the trees. The deer looks at the camera.\n",
+      "NegativePrompt": "multiple deer\n",
+      "ModulesCardState": {
+        "$values": []
+      }
+    },
+    "BatchSize": {
+      "BatchSize": 1,
+      "BatchCount": 4,
+      "IsBatchIndexEnabled": false,
+      "BatchIndex": 1
+    },
+    "Seed": {
+      "Seed": "1476852409",
+      "IsRandomizeEnabled": true
+    }
+  }
+}

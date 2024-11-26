@@ -1,5 +1,5 @@
 [package]
-name = "hello-ai-game"
+name = "Oliana"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,7 @@ edition = "2021"
 # we specify it manually here b/c it'll be easier to extent to a src/web_app.rs or src/for_phones.rs
 # and compile an entirely different platform target from the same (or mostly the same) code.
 [[bin]]
-name = "hello-ai-game"
+name = "Oliana"
 path = "src/main.rs"
 
 
@@ -34,24 +34,24 @@ tokio =        { version = "1.41", features = ["full"] }
 num_cpus =     { version = "1.16" }
 serde =        { version = "1", features = ["derive"] }
 clap =         { version = "4", features = ["derive"] }
-# ort =          { version = "1.16", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic", "default"] }
 ort =          { version = "=2.0.0-rc.8", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic", "default"] }
 ort-sys =      { version = "=2.0.0-rc.8" } # See https://github.com/pykeio/ort/issues/320#issuecomment-2492364763
-ollama-rs =    { version = "0.2" }
+ollama-rs =    { version = "0.2"  }
 ndarray =      { version = "0.16" } # required as dependency of ort to invoke ort::inputs![]
-dirs =         { version = "5.0" }
+dirs =         { version = "5.0"  }
 indicatif =    { version = "0.17" }
 tokenizers =   { version = "0.20" }
-downloader =   { version = "0.2" }
+downloader =   { version = "0.2"  }
 image =        { version = "0.24" }
-rand =         { version = "0.8" }
-rand_core =    { version = "0.6" }
+rand =         { version = "0.8"  }
+rand_core =    { version = "0.6"  }
 env_logger =   { version = "0.11" }
-log =          { version = "0.4" }
+log =          { version = "0.4"  }
 bevy_simple_text_input = { version = "0.9" }
+bevy_ecs =     { version = "0.14" }
 
 
-# This block specified dependencies ONLY compiled in on linux
+# This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
 [target.'cfg(target_os = "linux")'.dependencies]
 # Graphics dependencies
 bevy =       { version = "0.14", features = ["wayland"] }

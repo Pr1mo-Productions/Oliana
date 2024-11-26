@@ -80,9 +80,7 @@ async fn main_async(cli_args: &cli::Args) -> Result<(), Box<dyn std::error::Erro
     return Ok(());
   }
 
-
-  // Regular game logic
-
+  // Beginning of game startup in the gui module
   gui::open_gui_window().await?;
 
 

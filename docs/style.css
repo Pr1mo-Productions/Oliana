@@ -18,7 +18,7 @@
   right: 20vw;
   width: 60vw;
   z-index 100;
-  min-height: 100vh;
+  min-height: 200vh;
 
   font-family: Sans-Serif;
   line-height: 1.6;
@@ -39,6 +39,23 @@
 h1, h2, h3 {
   line-height: 1.2;
 }
+
+redacted { /* Stolen from https://codepen.io/adamruf/pen/GZwdrY, many thanks! */
+  position: relative;
+  white-space: pre;
+  &:after {
+    background: black;
+    border-radius: 0.1em;
+    box-shadow: 0 0 1px rgba(0,0,0,0.35);
+    content: " ";
+    width: 100%;
+    height: 1.2em;
+    left: 0;
+    position: absolute;
+    transform: skewY(-5deg) rotate(5deg);
+  }
+}
+
 
 /*
   Here we consolidate all light/dark specific theme data.
