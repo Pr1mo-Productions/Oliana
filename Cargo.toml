@@ -36,7 +36,7 @@ serde =        { version = "1", features = ["derive"] }
 clap =         { version = "4", features = ["derive"] }
 ort =          { version = "=2.0.0-rc.8", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic", "default"] }
 ort-sys =      { version = "=2.0.0-rc.8" } # See https://github.com/pykeio/ort/issues/320#issuecomment-2492364763
-ollama-rs =    { version = "0.2"  }
+ollama-rs =    { version = "0.2", features = ["stream"] }
 ndarray =      { version = "0.16" } # required as dependency of ort to invoke ort::inputs![]
 dirs =         { version = "5.0"  }
 indicatif =    { version = "0.17" }
@@ -50,7 +50,7 @@ log =          { version = "0.4"  }
 bevy_simple_text_input = { version = "0.9" }
 bevy_ecs =     { version = "0.14" }
 bevy_defer =   { version = "0.12" }
-
+futures-util = { version = "0.3" }
 
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
 [target.'cfg(target_os = "linux")'.dependencies]

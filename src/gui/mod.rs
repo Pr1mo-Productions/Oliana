@@ -17,6 +17,7 @@ const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 
+const CLEAR_TOKEN: &'static str = "!!!CLEAR!!!";
 
 pub async fn open_gui_window(cli_args: &crate::cli::Args) -> Result<(), Box<dyn std::error::Error>> {
   App::new()
@@ -137,11 +138,11 @@ fn setup(mut commands: Commands) {
             TextStyle {
                 // This font is loaded and will be used instead of the default font.
                 // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 32.0,
+                font_size: 30.0,
                 ..default()
             },
         ) // Set the justification of the Text
-        .with_text_justify(JustifyText::Center)
+        .with_text_justify(JustifyText::Left)
         // Set the style of the TextBundle itself.
         .with_style(Style {
             position_type: PositionType::Absolute,
@@ -194,8 +195,16 @@ fn read_ollama_response_events(
 ) {
     for ev in event_reader.read() {
         eprintln!("Event {:?} recieved!", ev);
-        for mut text in &mut query { // We'll only ever have 1 section of text rendered
-            text.sections[0].value = ev.0.to_string();
+        if ev.0 == CLEAR_TOKEN {
+            // Clear the screen
+            for mut text in &mut query { // We'll only ever have 1 section of text rendered
+                text.sections[0].value = String::new();
+            }
+        }
+        else {
+            for mut text in &mut query { // Append to existing content in support of a streaming design.
+                text.sections[0].value = format!("{}{}", text.sections[0].value, ev.0.to_string());
+            }
         }
     }
 }
@@ -206,6 +215,9 @@ fn read_ollama_prompt_events(
     // mut event_writer: EventWriter<ResponseFromOllamaEvent>,
     mut ollama_resource: ResMut<crate::gui::OllamaResource>,
 ) {
+    use std::iter::Iterator;
+    use futures_util::StreamExt;
+
     let arc_to_ollama_rwlock = ollama_resource.into_inner().ollama_inst.clone();
     for ev in event_reader.read() {
         let ev_txt = ev.0.to_string();
@@ -216,7 +228,24 @@ fn read_ollama_prompt_events(
         commands.spawn_task(|| async move {
             let ollama_resource_readlock = std::sync::RwLock::read(&closure_arc_to_ollama_rwlock).expect("Could not get read-only access to Ollama instance!");
 
-            let ollama_resp = ollama_resource_readlock.generate(ollama_rs::generation::completion::request::GenerationRequest::new("qwen2.5:7b".to_string(), ev_txt)).await;
+            bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( CLEAR_TOKEN.to_string() )).expect("async error");
+
+            match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new("qwen2.5:7b".to_string(), ev_txt)).await {
+                Ok(mut reply_stream) => {
+                    while let Some(Ok(several_responses)) = reply_stream.next().await {
+                        for response in several_responses.iter() {
+                            bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( response.response.to_string() )).expect("async error");
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("e = {:?}", e);
+                    bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(format!("{:?}", e))).expect("async error");
+                }
+            }
+
+
+            /*let ollama_resp = ollama_resource_readlock.generate(ollama_rs::generation::completion::request::GenerationRequest::new("qwen2.5:7b".to_string(), ev_txt)).await;
 
             match ollama_resp {
                 Ok(resp) => {
@@ -227,44 +256,10 @@ fn read_ollama_prompt_events(
                     eprintln!("resp e = {:?}", e);
                     bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(format!("{:?}", e))).expect("async error");
                 }
-            }
-
+            }*/
 
             Ok(())
-        });/*
-        .add(move |w: &mut World| {
-            // Poll for a reply up to 90 seconds; forwarding first non-empty value we unpack
-            //let resp_str = sync_boxed_reply.read().expect("Cannot aquire read lock!").to_string();
-            //w.send_event(ResponseFromOllamaEvent(resp_str));
-            let mut remaining_polls: usize = 90 * 4;
-            loop {
-                if remaining_polls < 1 {
-                    eprintln!("TIMED OUT Waiting for Ollama reply!");
-                    break;
-                }
-                remaining_polls -= 1;
-
-                match sync_boxed_reply.try_read() {
-                    Ok(resp_str) => {
-                        if resp_str.len() > 0 {
-                            w.send_event(ResponseFromOllamaEvent(resp_str.to_string()));
-                            break;
-                        }
-                        else {
-                            // Read success, but no data rx-ed yet so we fall through
-                        }
-                    }
-                    Err(e) => {
-                        // Fall-through
-                    }
-                };
-
-                // No data rx-ed yet OR error recieving so we wait
-                std::thread::sleep(std::time::Duration::from_millis(250));
-            }
-
-        });*/
-
+        });
     }
 }
 
