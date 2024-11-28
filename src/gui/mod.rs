@@ -15,49 +15,53 @@ const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
 
-pub async fn open_gui_window() -> Result<(), Box<dyn std::error::Error>> {
+
+
+pub async fn open_gui_window(cli_args: &crate::cli::Args) -> Result<(), Box<dyn std::error::Error>> {
   App::new()
     .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "hello-ai".into(),
-                    name: Some("hello-ai".into()),
-                    resolution: (500., 300.).into(),
-                    present_mode: PresentMode::AutoVsync,
-                    window_theme: Some(WindowTheme::Dark),
-                    enabled_buttons: bevy::window::EnabledButtons {
-                        maximize: false,
-                        ..Default::default()
-                    },
-                    // This will spawn an invisible window
-                    // The window will be made visible in the make_visible() system after 3 frames.
-                    // This is useful when you want to avoid the white window that shows up before the GPU is ready to render the app.
-                    visible: false,
-                    ..default()
-                }),
+        DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Oliana".into(),
+                name: Some("Oliana".into()),
+                resolution: (500., 300.).into(),
+                present_mode: PresentMode::AutoVsync,
+                window_theme: Some(WindowTheme::Dark),
+                enabled_buttons: bevy::window::EnabledButtons {
+                    maximize: false,
+                    ..Default::default()
+                },
+                // This will spawn an invisible window
+                // The window will be made visible in the make_visible() system after 3 frames.
+                // This is useful when you want to avoid the white window that shows up before the GPU is ready to render the app.
+                visible: false,
                 ..default()
             }),
-            LogDiagnosticsPlugin::default(),
-            FrameTimeDiagnosticsPlugin,
-        ))
-        .add_systems(
-            Update,
-            (
-                change_title,
-                toggle_theme,
-                //toggle_cursor,
-                toggle_vsync,
-                toggle_window_controls,
-                switch_level,
-                make_visible,
-            ),
-        )
-        .add_plugins(TextInputPlugin)
-        .add_systems(Startup, setup)
-        .add_systems(Update, focus.before(TextInputSystem))
-        .add_systems(Update, text_listener.after(TextInputSystem))
-        .add_systems(Startup, create_ai_engine)
-       .run();
+            ..default()
+        }),
+        LogDiagnosticsPlugin::default(),
+        FrameTimeDiagnosticsPlugin,
+    ))
+    .add_plugins(bevy_defer::AsyncPlugin::default_settings())
+    .add_systems(
+        Update,
+        (
+            change_title,
+            toggle_theme,
+            //toggle_cursor,
+            toggle_vsync,
+            toggle_window_controls,
+            switch_level,
+            make_visible,
+        ),
+    )
+    .add_plugins(TextInputPlugin)
+    .add_systems(Startup, setup)
+    .insert_resource((*cli_args).clone())
+    .add_systems(Startup, create_ai_engine)
+    .add_systems(Update, focus.before(TextInputSystem))
+    .add_systems(Update, text_listener.after(TextInputSystem))
+   .run();
 
    Ok(())
 }
@@ -272,8 +276,17 @@ fn text_listener(mut events: EventReader<TextInputSubmitEvent>, ) {
     }
 }
 
-fn create_ai_engine(mut commands: Commands) {
-    commands.spawn(AI_Engine::new());
+fn create_ai_engine(cli_args: Res<crate::cli::Args>, mut commands: Commands) {
+    use bevy_defer::AsyncCommandsExtension;
+    //let handle = tokio::runtime::Handle::current(); // Safety: Bevy runs in one of tokio's async methods, therefore MUST have an EnterGuard setup.
+    //let ai_engine = handle.block_on(AI_Engine::new(&cli_args));
+    //commands.spawn(ai_engine);
+    let cli_args_clone = cli_args.clone();
+    commands.spawn_task(|| async move {
+        let ai_engine = AI_Engine::new(&cli_args_clone).await;
+        //commands.spawn(ai_engine); // TODO hmmmmm
+        Ok(())
+    });
 }
 
 const OLLAMA_MODEL_NAME: &'static str = "qwen2.5:7b";
@@ -286,9 +299,9 @@ struct AI_Engine {
 }
 
 impl AI_Engine {
-    pub fn new() -> Self {
+    pub async fn new(cli_args: &crate::cli::Args) -> Self {
         let mut s = Self {
-            ollama_inst: ollama_rs::Ollama::default(),
+            ollama_inst: crate::ai::init_ollama_with_model_pulled(cli_args, "qwen2.5:7b").await.expect("Could not run ollama, ensure ollama[.exe] is installed an on PATH!"),
             have_verified_qwen2_5_7b_up: false,
             streaming_reply_tokens: std::sync::Arc::new(vec![].into()),
             //self_ref: None,

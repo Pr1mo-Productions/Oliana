@@ -6,6 +6,52 @@
 // offers a uniform input for many types of models and allows fairly transparent runtime
 // selection of GPU, CPU, and NPU compute devices
 
+pub async fn init_ollama_with_model_pulled(cli_args: &crate::cli::Args, model_name: &str) -> Result<ollama_rs::Ollama, Box<dyn std::error::Error>> {
+  let ollama = ollama_rs::Ollama::default();
+
+  match ollama.list_local_models().await {
+    Ok(local_models) => {
+      if cli_args.verbose > 1 {
+        eprintln!("Ollama already running, models = {:#?}", local_models);
+      }
+    }
+    Err(e) => {
+      if cli_args.verbose > 1 {
+        eprintln!("{:#?}", crate::utils::LocatedError { inner: Box::new(e), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() });
+      }
+
+      eprintln!("Executing 'ollama serve' as a background process...");
+
+      tokio::process::Command::new("ollama")
+        .args(&["serve"])
+        .kill_on_drop(false) // Prevents tokio from reaping process on Drop
+        .spawn().map_err(crate::utils::eloc!())?;
+
+      // Delay for 750ms or so
+      tokio::time::sleep(std::time::Duration::from_millis(750)).await;
+    }
+  }
+
+  let local_models = ollama.list_local_models().await.map_err(crate::utils::eloc!())?;
+
+  match ollama.show_model_info(model_name.to_string()).await {
+    Ok(model_info) => { /* unused */ },
+    Err(e) => {
+      if cli_args.verbose > 1 {
+        eprintln!("{:#?}", crate::utils::LocatedError { inner: Box::new(e), file: file!(), line: line!(), column: column!(), addtl_msg: String::new() });
+      }
+      // Spawn off a download
+      eprintln!("Telling ollama to pull the model {}...", model_name);
+      ollama.pull_model(model_name.to_string(), true).await?;
+      eprintln!("Done pulling {}!", model_name);
+    }
+  }
+
+  Ok(ollama)
+}
+
+
+
 pub async fn get_compute_device_names(cli_args: &crate::cli::Args) -> Result<Vec<String>, Box<dyn std::error::Error>> {
   use ort::ExecutionProvider;
 
