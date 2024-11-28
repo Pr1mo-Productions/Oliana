@@ -19,6 +19,9 @@ __Required__
  - [Rust](https://rustup.rs/)
  - [onnxruntime](https://onnxruntime.ai/)
     - Arch: `sudo pacman -S onnxruntime-opt openmpi`
+ - [ollama](https://ollama.com/)
+    - Arch: `sudo pacman -S ollama`
+
 
 __Optional__
 
