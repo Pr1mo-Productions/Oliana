@@ -76,6 +76,10 @@ This looks like a good beginning for vector databases & long-term information st
 
  - https://github.com/Mintplex-Labs/anything-llm
 
+This is a neat capability we should bolt on after getting basic AI image-gen done!
+
+ - https://github.com/SET001/bevy_scroller
+
 
 # Utility scripts
 
