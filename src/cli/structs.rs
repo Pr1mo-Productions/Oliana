@@ -11,6 +11,10 @@ pub struct Args {
     #[arg(short, long)]
     pub random_seed: Option<usize>,
 
+    /// If set, all places where we spin up models using ollama will use this model. This may also be specified as the environment variable OLLAMA_MODEL_NAME; cli overrides environment variable.
+    #[arg(short, long)]
+    pub ollama_model_name: Option<String>,
+
     /// If this flag is passed the program outputs connected compute hardware and exits.
     #[arg(long, action=clap::ArgAction::SetTrue)]
     pub list_connected_hardware: bool,
@@ -30,5 +34,18 @@ pub struct Args {
     #[arg(long)]
     pub llm_tokenizer_json_file: Option<String>,
 
-
 }
+
+impl Args {
+    pub fn update_from_env(&mut self) {
+        if self.ollama_model_name.is_none() {
+            if let Ok(var_txt) = std::env::var("OLLAMA_MODEL_NAME") {
+                if var_txt.len() > 0 {
+                    eprintln!("Using ollama_model_name = {:?}", var_txt);
+                    self.ollama_model_name = Some(var_txt);
+                }
+            }
+        }
+    }
+}
+

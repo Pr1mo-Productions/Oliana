@@ -12,6 +12,9 @@ use bevy_simple_text_input::{
 
 use bevy_defer::AsyncCommandsExtension;
 
+use bevy_simple_scroll_view::*;
+
+
 const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
 const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
@@ -46,6 +49,7 @@ pub async fn open_gui_window(cli_args: &crate::cli::Args) -> Result<(), Box<dyn 
     ))
     .add_plugins(bevy_defer::AsyncPlugin::default_settings())
     .add_plugins(TextInputPlugin)
+    .add_plugins(ScrollViewPlugin)
 
     .add_event::<OllamaIsReadyToProcessEvent>()
     .add_event::<PromptToOllamaEvent>()
@@ -130,7 +134,7 @@ fn setup(mut commands: Commands) {
         });
 
     // Text with one section; OllamaReplyText allows us to refer to the TextBundle?
-    commands.spawn((
+    /*commands.spawn((
         // Create a TextBundle that has a Text with a single section.
         TextBundle::from_section(
             // Accepts a `String` or any type that converts into a `String`, such as `&str`
@@ -148,10 +152,58 @@ fn setup(mut commands: Commands) {
             position_type: PositionType::Absolute,
             top: Val::Px(4.0),
             left: Val::Px(4.0),
+            right: Val::Px(4.0),
+            bottom: Val::Px(52.0),
             ..default()
         }),
         OllamaReplyText,
-    ));
+    ));*/
+
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(4.0),
+                left: Val::Px(4.0),
+                right: Val::Px(4.0),
+                bottom: Val::Px(56.0),
+                align_items: AlignItems::Start, // Start here means "Top"
+                justify_content: JustifyContent::Start, // Start here means "Left"
+                padding: UiRect::all(Val::Px(4.0)),
+                ..default()
+            },
+            border_color: BORDER_COLOR_INACTIVE.into(),
+            background_color: BACKGROUND_COLOR.into(),
+            ..default()
+        },
+        ScrollableContent::default(),
+    ))
+    .with_children(|scroll_area| {
+        scroll_area.spawn((
+            TextBundle::from_section(
+                // Accepts a `String` or any type that converts into a `String`, such as `&str`
+                "hello\nbevy!",
+                TextStyle {
+                    // This font is loaded and will be used instead of the default font.
+                    // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 30.0,
+                    ..default()
+                },
+            ) // Set the justification of the Text
+            .with_text_justify(JustifyText::Left)
+            // Set the style of the TextBundle itself.
+            /*.with_style(Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(4.0),
+                left: Val::Px(4.0),
+                right: Val::Px(4.0),
+                bottom: Val::Px(56.0),
+                ..default()
+            })*/,
+            OllamaReplyText,
+        ));
+    });
+
 
 }
 
@@ -213,24 +265,29 @@ fn read_ollama_prompt_events(
     mut commands: Commands,
     mut event_reader: EventReader<PromptToOllamaEvent>,
     // mut event_writer: EventWriter<ResponseFromOllamaEvent>,
+    cli_args: Res<crate::cli::Args>,
     mut ollama_resource: ResMut<crate::gui::OllamaResource>,
 ) {
     use std::iter::Iterator;
     use futures_util::StreamExt;
 
     let arc_to_ollama_rwlock = ollama_resource.into_inner().ollama_inst.clone();
+
+    let desired_model_name = cli_args.ollama_model_name.clone().unwrap_or("qwen2.5:7b".to_string());
+
     for ev in event_reader.read() {
         let ev_txt = ev.0.to_string();
         eprintln!("Passing this prompt to Ollama: {:?}", ev.0);
 
         let closure_arc_to_ollama_rwlock = arc_to_ollama_rwlock.clone();
+        let closure_owned_desired_model_name = desired_model_name.to_string();
 
         commands.spawn_task(|| async move {
             let ollama_resource_readlock = std::sync::RwLock::read(&closure_arc_to_ollama_rwlock).expect("Could not get read-only access to Ollama instance!");
 
             bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( CLEAR_TOKEN.to_string() )).expect("async error");
 
-            match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new("qwen2.5:7b".to_string(), ev_txt)).await {
+            match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new(closure_owned_desired_model_name, ev_txt)).await {
                 Ok(mut reply_stream) => {
                     while let Some(Ok(several_responses)) = reply_stream.next().await {
                         for response in several_responses.iter() {
@@ -244,20 +301,6 @@ fn read_ollama_prompt_events(
                 }
             }
 
-
-            /*let ollama_resp = ollama_resource_readlock.generate(ollama_rs::generation::completion::request::GenerationRequest::new("qwen2.5:7b".to_string(), ev_txt)).await;
-
-            match ollama_resp {
-                Ok(resp) => {
-                    eprintln!("resp.response = {:?}", resp.response);
-                    bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(resp.response.to_string())).expect("async error");
-                }
-                Err(e) => {
-                    eprintln!("resp e = {:?}", e);
-                    bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(format!("{:?}", e))).expect("async error");
-                }
-            }*/
-
             Ok(())
         });
     }
@@ -269,11 +312,14 @@ fn setup_ollama(mut commands: Commands, mut ollama_resource: ResMut<crate::gui::
     // The write lock is NOT dropped here, it is MOVED into the async context below.
     let owned_cli_args: crate::cli::Args = cli_args.clone();
     let arc_to_ollama_rwlock = ollama_resource.into_inner().ollama_inst.clone();
+    let desired_model_name = owned_cli_args.ollama_model_name.clone().unwrap_or("qwen2.5:7b".to_string());
+
+    eprintln!("desired_model_name = {:?}", &desired_model_name);
 
     commands.spawn_task(|| async move {
 
         let mut ollama_resource_writelock = std::sync::RwLock::write(&arc_to_ollama_rwlock).expect("Cannot get Write lock of OllamaResource.ollama_inst");
-        *ollama_resource_writelock = crate::ai::init_ollama_with_model_pulled(&owned_cli_args, "qwen2.5:7b").await.unwrap();
+        *ollama_resource_writelock = crate::ai::init_ollama_with_model_pulled(&owned_cli_args, &desired_model_name).await.unwrap();
 
         // std::thread::sleep(std::time::Duration::from_millis(3500)); // Haha yeah we suck, but this is a good knee-jerk measurement of ^^ lotsa work upstairs
 

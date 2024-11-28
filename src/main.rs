@@ -17,7 +17,8 @@ mod ai;     // src/ai/mod.rs
 // builds a tokio async runtime, and passes state to that.
 // If the tokio runtime returns an error we report it & exit w/ 1.
 fn main() -> Result<(), Box<dyn std::error::Error>>  {
-  let cli_args = cli::Args::parse();
+  let mut cli_args = cli::Args::parse();
+  cli_args.update_from_env();
 
   // Silence the logs of some of our dependencies
   if cli_args.verbose < 2 {

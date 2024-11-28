@@ -50,6 +50,7 @@ log =          { version = "0.4"  }
 bevy_simple_text_input = { version = "0.9" }
 bevy_ecs =     { version = "0.14" }
 bevy_defer =   { version = "0.12" }
+bevy_simple_scroll_view = { version = "0.2" }
 futures-util = { version = "0.3" }
 
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
