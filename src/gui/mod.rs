@@ -375,7 +375,7 @@ fn reset_scroll(
         return;
     };
     for interaction in q.iter() {
-        eprintln!("interaction = {:?}", interaction);
+        // eprintln!("interaction = {:?}", interaction);
         if interaction != &Interaction::Pressed {
             continue;
         }
