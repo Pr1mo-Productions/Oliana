@@ -45,12 +45,13 @@ pub async fn open_gui_window(cli_args: &crate::cli::Args) -> Result<(), Box<dyn 
             }),
             ..default()
         }),
-        LogDiagnosticsPlugin::default(),
-        FrameTimeDiagnosticsPlugin,
+//        LogDiagnosticsPlugin::default(),
+//        FrameTimeDiagnosticsPlugin,
+        ScrollViewPlugin,
     ))
     .add_plugins(bevy_defer::AsyncPlugin::default_settings())
     .add_plugins(TextInputPlugin)
-    .add_plugins(ScrollViewPlugin)
+//    .add_plugins(ScrollViewPlugin)
 
     .add_event::<OllamaIsReadyToProcessEvent>()
     .add_event::<PromptToOllamaEvent>()
@@ -71,6 +72,7 @@ pub async fn open_gui_window(cli_args: &crate::cli::Args) -> Result<(), Box<dyn 
     .add_systems(Update, read_ollama_ready_events)
     .add_systems(Update, read_ollama_response_events)
     .add_systems(Update, read_ollama_prompt_events)
+    .add_systems(Update, reset_scroll) // TODO move this down/make it accessible someplace
 
    .run();
 
@@ -177,7 +179,7 @@ fn setup(mut commands: Commands) {
             background_color: LLM_OUTPUT_BACKGROUND_COLOR.into(),
             ..default()
         },
-        ScrollableContent::default(),
+        ScrollView::default(),
     ))
     .with_children(|scroll_area| {
         scroll_area.spawn((
@@ -193,15 +195,21 @@ fn setup(mut commands: Commands) {
             ) // Set the justification of the Text
             .with_text_justify(JustifyText::Left)
             // Set the style of the TextBundle itself.
-            /*.with_style(Style {
-                position_type: PositionType::Absolute,
+            .with_style(Style {
+                /*position_type: PositionType::Absolute,
                 top: Val::Px(4.0),
                 left: Val::Px(4.0),
                 right: Val::Px(4.0),
-                bottom: Val::Px(56.0),
+                bottom: Val::Px(56.0),*/
+                min_width: Val::Px(200.0),
+                // min_height: Val::Px(900.0),
+                margin: UiRect::all(Val::Px(4.0)),
+                //border: UiRect::all(Val::Px(5.0)),
+                padding: UiRect::all(Val::Px(4.0)),
                 ..default()
-            })*/,
+            }),
             OllamaReplyText,
+            ScrollableContent::default(),
         ));
     });
 
@@ -351,3 +359,29 @@ pub struct ResponseFromOllamaEvent(String);
 // A unit struct to help identify the Ollama Reply UI component, since there may be many Text components
 #[derive(Component)]
 struct OllamaReplyText;
+
+
+
+
+
+
+
+fn reset_scroll(
+    q: Query<&Interaction, Changed<Interaction>>,
+    mut scrolls_q: Query<&mut ScrollableContent>,
+) {
+    let Ok(mut scroll) = scrolls_q.get_single_mut() else {
+        eprintln!("scrolls_q = returned None!");
+        return;
+    };
+    for interaction in q.iter() {
+        eprintln!("interaction = {:?}", interaction);
+        if interaction != &Interaction::Pressed {
+            continue;
+        }
+        /*match action {
+            ScrollButton::MoveToTop => scroll.scroll_to_top(),
+            ScrollButton::MoveToBottom => scroll.scroll_to_bottom(),
+        }*/
+    }
+}
