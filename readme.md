@@ -80,6 +80,10 @@ This is a neat capability we should bolt on after getting basic AI image-gen don
 
  - https://github.com/SET001/bevy_scroller
 
+Speaking of in-process image gen, this looks nice and simple!
+
+ - https://github.com/RobertBeckebans/AI_text2img_diffusers-rs
+
 
 # Utility scripts
 
