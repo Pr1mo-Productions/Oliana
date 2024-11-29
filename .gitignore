@@ -8,6 +8,7 @@ bin/
 build
 build/
 
+out.png
 
 
 # Added by cargo

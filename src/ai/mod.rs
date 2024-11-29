@@ -297,6 +297,36 @@ pub async fn run_oneshot_llm_prompt(cli_args: &crate::cli::Args, prompt_txt: &st
 
 pub async fn run_oneshot_ai_img_prompt(cli_args: &crate::cli::Args, prompt_txt: &str, out_file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
 
+  // First download all the models
+  let local_clip_v2_1_ot = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_clip_v2.1.ot").await?;
+  let local_clip_v2_1_ot_path = download_file_ifne(
+    cli_args, &local_clip_v2_1_ot, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/clip_v2.1.ot"
+  ).await?;
+
+  let local_vae_v2_1_ot = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_vae_v2.1.ot").await?;
+  let local_vae_v2_1_ot_path = download_file_ifne(
+    cli_args, &local_vae_v2_1_ot, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/vae_v2.1.ot"
+  ).await?;
+
+  let local_unet_v2_1_ot = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_unet_v2.1.ot").await?;
+  let local_unet_v2_1_ot_path = download_file_ifne(
+    cli_args, &local_unet_v2_1_ot, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/unet_v2.1.ot"
+  ).await?;
+
+  let bpe_simple_vocab_16e6_txt = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_bpe_simple_vocab_16e6.txt").await?;
+  let bpe_simple_vocab_16e6_txt_path = download_file_ifne(
+    cli_args, &bpe_simple_vocab_16e6_txt, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/raw/main/weights/bpe_simple_vocab_16e6.txt"
+  ).await?;
+
+  tch::maybe_init_cuda();
+
+  eprintln!("Cuda available: {}", tch::Cuda::is_available());
+  eprintln!("Cudnn available: {}", tch::Cuda::cudnn_is_available());
+  eprintln!("Cuda num devices: {}", tch::Cuda::device_count());
+
+
+
+  eprintln!("TODO!");
 
 
   Ok(out_file_path.to_string())

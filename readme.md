@@ -21,6 +21,9 @@ __Required__
     - Arch: `sudo pacman -S onnxruntime-opt openmpi`
  - [ollama](https://ollama.com/)
     - Arch: `sudo pacman -S ollama`
+ - [libtorch-cuda](https://pytorch.org/)
+    - Arch: `yay -S libtorch-cuda`
+    - This gives diffusers CUDA capabilities, which we're engineering on the assumption exist b/c it's a well-tested path to executing models quickly.
 
 
 __Optional__
