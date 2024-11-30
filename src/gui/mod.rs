@@ -315,6 +315,26 @@ fn read_ollama_prompt_events(
     }
 }
 
+fn poll_for_write_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, num_retries: usize, retry_delay_s: u64) -> std::sync::RwLockWriteGuard<T> {
+    let mut remaining_polls = num_retries;
+    loop {
+        remaining_polls -= 1;
+        match std::sync::RwLock::write(&arc_rwlock) {
+            Ok(rwlock) => {
+                return rwlock;
+            }
+            Err(e) => {
+                eprintln!("[ poll_for_write_lock ] {:?}", e);
+                std::thread::sleep(std::time::Duration::from_millis(retry_delay_s));
+            }
+        }
+        if remaining_polls < 1 {
+            break;
+        }
+    }
+    panic!("[ poll_for_write_lock ] Timed out waiting for a lock!")
+}
+
 
 fn setup_ollama(mut commands: Commands, mut ollama_resource: ResMut<crate::gui::OllamaResource>, cli_args: Res<crate::cli::Args>, mut ev_ollama_ready: EventWriter<OllamaIsReadyToProcessEvent>) {
 
@@ -327,8 +347,16 @@ fn setup_ollama(mut commands: Commands, mut ollama_resource: ResMut<crate::gui::
 
     commands.spawn_task(|| async move {
 
-        let mut ollama_resource_writelock = std::sync::RwLock::write(&arc_to_ollama_rwlock).expect("Cannot get Write lock of OllamaResource.ollama_inst");
-        *ollama_resource_writelock = crate::ai::init_ollama_with_model_pulled(&owned_cli_args, &desired_model_name).await.unwrap();
+        let mut ollama_resource_writelock = poll_for_write_lock(&arc_to_ollama_rwlock, 100, 50);
+
+        match crate::ai::init_ollama_with_model_pulled(&owned_cli_args, &desired_model_name).await {
+            Ok(ollama_inst) => {
+                *ollama_resource_writelock = ollama_inst;
+            }
+            Err(e) => {
+                eprintln!("[ setup_ollama ] e = {:?}", e);
+            }
+        }
 
         // std::thread::sleep(std::time::Duration::from_millis(3500)); // Haha yeah we suck, but this is a good knee-jerk measurement of ^^ lotsa work upstairs
 
