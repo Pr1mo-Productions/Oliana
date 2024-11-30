@@ -292,21 +292,30 @@ fn read_ollama_prompt_events(
         let closure_owned_desired_model_name = desired_model_name.to_string();
 
         commands.spawn_task(|| async move {
-            let ollama_resource_readlock = std::sync::RwLock::read(&closure_arc_to_ollama_rwlock).expect("Could not get read-only access to Ollama instance!");
+            let ollama_resource_readlock = poll_for_read_lock(&closure_arc_to_ollama_rwlock, 100, 50);
 
-            bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( CLEAR_TOKEN.to_string() )).expect("async error");
+            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( CLEAR_TOKEN.to_string() ));
+            if let Err(e) = r {
+                eprintln!("[ read_ollama_prompt_events ] {:?}", e);
+            }
 
             match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new(closure_owned_desired_model_name, ev_txt)).await {
                 Ok(mut reply_stream) => {
                     while let Some(Ok(several_responses)) = reply_stream.next().await {
                         for response in several_responses.iter() {
-                            bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( response.response.to_string() )).expect("async error");
+                            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( response.response.to_string() ));
+                            if let Err(e) = r {
+                                eprintln!("[ read_ollama_prompt_events ] {:?}", e);
+                            }
                         }
                     }
                 }
                 Err(e) => {
                     eprintln!("e = {:?}", e);
-                    bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(format!("{:?}", e))).expect("async error");
+                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(format!("{:?}", e)));
+                    if let Err(e) = r {
+                        eprintln!("[ read_ollama_prompt_events ] {:?}", e);
+                    }
                 }
             }
 
@@ -320,6 +329,26 @@ fn poll_for_write_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>,
     loop {
         remaining_polls -= 1;
         match std::sync::RwLock::write(&arc_rwlock) {
+            Ok(rwlock) => {
+                return rwlock;
+            }
+            Err(e) => {
+                eprintln!("[ poll_for_write_lock ] {:?}", e);
+                std::thread::sleep(std::time::Duration::from_millis(retry_delay_s));
+            }
+        }
+        if remaining_polls < 1 {
+            break;
+        }
+    }
+    panic!("[ poll_for_write_lock ] Timed out waiting for a lock!")
+}
+
+fn poll_for_read_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, num_retries: usize, retry_delay_s: u64) -> std::sync::RwLockReadGuard<T> {
+    let mut remaining_polls = num_retries;
+    loop {
+        remaining_polls -= 1;
+        match std::sync::RwLock::read(&arc_rwlock) {
             Ok(rwlock) => {
                 return rwlock;
             }
