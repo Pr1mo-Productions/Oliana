@@ -26,25 +26,35 @@ const CLEAR_TOKEN: &'static str = "!!!CLEAR!!!";
 pub async fn open_gui_window(cli_args: &crate::cli::Args) -> Result<(), Box<dyn std::error::Error>> {
   App::new()
     .add_plugins((
-        DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Oliana".into(),
-                name: Some("Oliana".into()),
-                resolution: (500., 300.).into(),
-                present_mode: PresentMode::AutoVsync,
-                window_theme: Some(WindowTheme::Dark),
-                enabled_buttons: bevy::window::EnabledButtons {
-                    maximize: false,
-                    ..Default::default()
-                },
-                // This will spawn an invisible window
-                // The window will be made visible in the make_visible() system after 3 frames.
-                // This is useful when you want to avoid the white window that shows up before the GPU is ready to render the app.
-                visible: false,
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Oliana".into(),
+                    name: Some("Oliana".into()),
+                    resolution: (500., 300.).into(),
+                    present_mode: PresentMode::AutoVsync,
+                    window_theme: Some(WindowTheme::Dark),
+                    enabled_buttons: bevy::window::EnabledButtons {
+                        maximize: false,
+                        ..Default::default()
+                    },
+                    // This will spawn an invisible window
+                    // The window will be made visible in the make_visible() system after 3 frames.
+                    // This is useful when you want to avoid the white window that shows up before the GPU is ready to render the app.
+                    visible: false,
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(bevy::render::RenderPlugin { // This configuration uses the builtin GPU before a dgpu; Jeff saw some wierd crashes while running lots of sw all reaching for the dgpu, so this is here as a small reliability improver.
+                render_creation: bevy::render::settings::RenderCreation::Automatic(
+                    bevy::render::settings::WgpuSettings {
+                        power_preference: bevy::render::settings::PowerPreference::LowPower,
+                        ..default()
+                    }
+                ),
                 ..default()
             }),
-            ..default()
-        }),
 //        LogDiagnosticsPlugin::default(),
 //        FrameTimeDiagnosticsPlugin,
         ScrollViewPlugin,
