@@ -266,6 +266,8 @@ fn read_ollama_response_events(
 ) {
     for ev in event_reader.read() {
         eprintln!("Event {:?} recieved!", ev);
+        let renderable_string = ev.0.to_string();
+        let renderable_string = renderable_string.replace("—", "-"); // Language models can produce hard-to-render glyphs which we manually remove here.
         if ev.0 == CLEAR_TOKEN {
             // Clear the screen
             for mut text in &mut query { // We'll only ever have 1 section of text rendered
@@ -274,7 +276,7 @@ fn read_ollama_response_events(
         }
         else {
             for mut text in &mut query { // Append to existing content in support of a streaming design.
-                text.sections[0].value = format!("{}{}", text.sections[0].value, ev.0.to_string());
+                text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string.to_string());
             }
         }
     }
