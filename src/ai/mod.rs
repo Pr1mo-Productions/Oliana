@@ -318,7 +318,8 @@ pub async fn run_oneshot_ai_img_prompt(cli_args: &crate::cli::Args, prompt_txt: 
     cli_args, &bpe_simple_vocab_16e6_txt, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/raw/main/weights/bpe_simple_vocab_16e6.txt"
   ).await?;
 
-  tch::maybe_init_cuda();
+  // tch::maybe_init_cuda(); // No longer exists in 0.18+
+  tch::Cuda::cudnn_set_benchmark(false); // Doesn't work -_- https://github.com/LaurentMazare/diffusers-rs/issues/16#issuecomment-1376939427
 
   eprintln!("Cuda available: {}", tch::Cuda::is_available());
   eprintln!("Cudnn available: {}", tch::Cuda::cudnn_is_available());

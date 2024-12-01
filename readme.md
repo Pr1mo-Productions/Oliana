@@ -55,8 +55,6 @@ You can directly compile & run in one step via `cargo run --release`
  - We're using [Bevy](https://bevyengine.org/) as our graphics framework; it has more capabilities than we will need and is cross-platform, all we will need to do is learn the engine and map our deisgns into Bevy's structures.
  - We're using Github Pages as our [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`) because it's free and easy to setup.
 
-
-
 # Miscellaneous To-Dos
 
  - [ ] Which models would be best for various game mechanics? What are the hardware-requirement / performance trade-offs?
