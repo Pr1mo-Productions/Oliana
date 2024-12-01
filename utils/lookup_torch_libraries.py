@@ -26,6 +26,7 @@ print(f'first_cuda_device = {first_cuda_device}')
 print(f'memory info of device = {torch.cuda.mem_get_info()}')
 
 # The following lists _ALL_ open filed, including the copy of libtorch_cuda.so we've just loaded.
-subprocess.run([
-  'lsof', '-p', str(os.getpid())
-])
+if not 'quiet' in sys.argv:
+  subprocess.run([
+    'lsof', '-p', str(os.getpid())
+  ])

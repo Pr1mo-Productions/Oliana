@@ -36,8 +36,12 @@ __Optional__
 
 To transform the source code into a `.exe` program, run
 
-```
-cargo build --release
+```bash
+# NO LONGER POSSIBLE: cargo build --release
+
+# build.py wraps `cargo` and uses pip to download pytorch, which contains the implementation of torch we link against.
+python build.py --release
+
 ```
 
 
@@ -46,6 +50,11 @@ cargo build --release
 After compiling, run `./target/release/Oliana[.exe]`
 
 You can directly compile & run in one step via `cargo run --release`
+
+```bash
+python build.py run --release -- -v --test-image-prompt "A photograph of the moon falling into the ocean"
+
+```
 
 # Design Decisions Log
 
