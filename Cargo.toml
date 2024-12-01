@@ -54,10 +54,8 @@ bevy_simple_scroll_view = { version = "0.2" }
 futures-util = { version = "0.3" }
 #diffusers =    { version = "0.3" }
 #tch =          { version = "0.18" }
-tch =          { version = "0.18" }
-torch-sys =    { version = "0.18", features = ["download-libtorch"] }
-# torch-sys =    { version = "0.18", features = [ ] }
-
+tch =          { version = "0.15" }
+torch-sys =    { version = "0.15", features = [ ] }
 
 
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
