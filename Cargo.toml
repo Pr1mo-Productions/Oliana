@@ -53,7 +53,7 @@ bevy_defer =   { version = "0.12" }
 bevy_simple_scroll_view = { version = "0.2" }
 futures-util = { version = "0.3" }
 #diffusers =    { version = "0.3" }
-#tch =          { version = "0.18" }
+diffusers =    { version = "0.3", git = "https://github.com/BM-Enterprises/diffusers-rs.git" } # The BM-Enterprises copy exists to bump torch-sys to 0.15
 tch =          { version = "0.15" }
 torch-sys =    { version = "0.15", features = [ ] }
 
