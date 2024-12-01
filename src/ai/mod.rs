@@ -300,23 +300,23 @@ pub async fn run_oneshot_ai_img_prompt(cli_args: &crate::cli::Args, prompt_txt: 
   use tch::Kind;
 
   // First download all the models
-  let local_clip_v2_1_ot = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_clip_v2.1.ot").await?;
-  let local_clip_v2_1_ot_path = download_file_ifne(
-    cli_args, &local_clip_v2_1_ot, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/clip_v2.1.ot"
+  let local_clip_v2_1 = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_clip_v2.1.safetensors").await?;
+  let local_clip_v2_1_path = download_file_ifne(
+    cli_args, &local_clip_v2_1, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/clip_v2.1.safetensors"
   ).await?;
-  let local_clip_v2_1_ot_path_s = local_clip_v2_1_ot_path.to_string_lossy();
+  let local_clip_v2_1_path_s = local_clip_v2_1_path.to_string_lossy();
 
-  let local_vae_v2_1_ot = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_vae_v2.1.ot").await?;
-  let local_vae_v2_1_ot_path = download_file_ifne(
-    cli_args, &local_vae_v2_1_ot, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/vae_v2.1.ot"
+  let local_vae_v2_1 = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_vae_v2.1.safetensors").await?;
+  let local_vae_v2_1_path = download_file_ifne(
+    cli_args, &local_vae_v2_1, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/vae_v2.1.safetensors"
   ).await?;
-  let local_vae_v2_1_ot_path_s = local_vae_v2_1_ot_path.to_string_lossy();
+  let local_vae_v2_1_path_s = local_vae_v2_1_path.to_string_lossy();
 
-  let local_unet_v2_1_ot = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_unet_v2.1.ot").await?;
-  let local_unet_v2_1_ot_path = download_file_ifne(
-    cli_args, &local_unet_v2_1_ot, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/unet_v2.1.ot"
+  let local_unet_v2_1 = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_unet_v2.1.safetensors").await?;
+  let local_unet_v2_1_path = download_file_ifne(
+    cli_args, &local_unet_v2_1, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/unet_v2.1.safetensors"
   ).await?;
-  let local_unet_v2_1_ot_path_s = local_unet_v2_1_ot_path.to_string_lossy();
+  let local_unet_v2_1_path_s = local_unet_v2_1_path.to_string_lossy();
 
   let bpe_simple_vocab_16e6_txt = crate::utils::get_cache_file("rust-stable-diffusion-v2-1_bpe_simple_vocab_16e6.txt").await?;
   let bpe_simple_vocab_16e6_txt_path = download_file_ifne(
@@ -356,15 +356,15 @@ pub async fn run_oneshot_ai_img_prompt(cli_args: &crate::cli::Args, prompt_txt: 
   let no_grad_guard = tch::no_grad_guard();
 
   println!("Building the Clip transformer.");
-  let text_model = sd_config.build_clip_transformer(&local_clip_v2_1_ot_path_s, clip_device)?;
+  let text_model = sd_config.build_clip_transformer(&local_clip_v2_1_path_s, clip_device)?;
   let text_embeddings = text_model.forward(&tokens);
   let uncond_embeddings = text_model.forward(&uncond_tokens);
   let text_embeddings = tch::Tensor::cat(&[uncond_embeddings, text_embeddings], 0).to(unet_device);
 
   println!("Building the autoencoder.");
-  let vae = sd_config.build_vae(&local_vae_v2_1_ot_path_s, vae_device)?;
+  let vae = sd_config.build_vae(&local_vae_v2_1_path_s, vae_device)?;
   println!("Building the unet.");
-  let unet = sd_config.build_unet(&local_unet_v2_1_ot_path_s, unet_device, 4)?;
+  let unet = sd_config.build_unet(&local_unet_v2_1_path_s, unet_device, 4)?;
 
   let bsize = 1;
   for idx in 0..num_samples {
