@@ -53,6 +53,10 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now planka
 
-
+# Setup some Swap space
+sudo mkswap -U clear --size 2G --file /swapfile
+vim /etc/fstab <<EOF
+/swapfile none swap defaults 0 0
+EOF
 
 ```
