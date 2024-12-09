@@ -1,5 +1,12 @@
 
-# Experiment status
+# Oliana
+
+This repo contains the game runtime for Oliana! Non-techie details on the [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`),
+techie details below.
+
+
+Oliana is made up of several sub-programs. This design minimises damage when one component needs a large re-design, and gives us strong interfaces that will help scale things out as we prove sub-component capabilities.
+
 
 ## `Oliana-Lib`
 
