@@ -15,8 +15,12 @@ pytorch-static
 pytorch-static/
 
 out.png
+*.mpk
+*vocab*txt
 
 
 # Added by cargo
 
 /target
+target
+

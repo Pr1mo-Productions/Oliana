@@ -1,0 +1,75 @@
+[package]
+name = "Oliana"
+version = "0.1.0"
+edition = "2021"
+
+# This described the default way to find & compile src/main.rs, but
+# we specify it manually here b/c it'll be easier to extent to a src/web_app.rs or src/for_phones.rs
+# and compile an entirely different platform target from the same (or mostly the same) code.
+[[bin]]
+name = "Oliana"
+path = "src/main.rs"
+
+
+[features]
+default = ["cuda"]
+
+# To build with ort's "cuda" feature, compile with `cargo build --features cuda --release`
+# Host needs CUDA dev tools installed
+cuda = ["ort/cuda"]
+# To build with ort's "openvino" feature, compile with `cargo build --features openvino --release`
+# Host needs intel-oneapi-mkl / Intel MKL dev tools installed
+openvino = ["ort/openvino"]
+# To build with ort's "coreml" feature, compile with `cargo build --features coreml --release`
+# Host needs to be an Apple machine to use Apple's CoreML accelerators.
+coreml = ["ort/coreml"]
+
+# We use these internally to swap out LLM backends; ollama requires the user to install ollama.exe separately for now.
+llm_ollama = []
+llm_ort = []
+
+[dependencies]
+# Runtime/hardware/OS control dependencies
+tokio =        { version = "1.41", features = ["full"] }
+num_cpus =     { version = "1.16" }
+serde =        { version = "1", features = ["derive"] }
+clap =         { version = "4", features = ["derive"] }
+ort =          { version = "=2.0.0-rc.8", features = [ "download-binaries", "copy-dylibs", "fetch-models", "load-dynamic", "default"] }
+ort-sys =      { version = "=2.0.0-rc.8" } # See https://github.com/pykeio/ort/issues/320#issuecomment-2492364763
+ollama-rs =    { version = "0.2", features = ["stream"] }
+ndarray =      { version = "0.16" } # required as dependency of ort to invoke ort::inputs![]
+dirs =         { version = "5.0"  }
+indicatif =    { version = "0.17" }
+tokenizers =   { version = "0.20" }
+downloader =   { version = "0.2"  }
+image =        { version = "0.24" }
+rand =         { version = "0.8"  }
+rand_core =    { version = "0.6"  }
+env_logger =   { version = "0.11" }
+log =          { version = "0.4"  }
+bevy_simple_text_input = { version = "0.9" }
+bevy_ecs =     { version = "0.14" }
+bevy_defer =   { version = "0.12" }
+bevy_simple_scroll_view = { version = "0.2" }
+futures-util = { version = "0.3" }
+#diffusers =    { version = "0.3" }
+diffusers =    { version = "0.3", git = "https://github.com/BM-Enterprises/diffusers-rs.git" } # The BM-Enterprises copy exists to bump torch-sys to 0.15
+tch =          { version = "0.15" }
+torch-sys =    { version = "0.15", features = [ ] }
+
+
+# This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
+[target.'cfg(target_os = "linux")'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.14", features = ["wayland"] }
+
+# This block specified dependencies ONLY compiled in on macos
+[target.'cfg(target_os = "macos")'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.14", features = [ ] }
+
+# This block specified dependencies ONLY compiled in on windows
+[target.'cfg(windows)'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.14", features = [ ] }
+

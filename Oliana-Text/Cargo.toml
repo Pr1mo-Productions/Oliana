@@ -1,0 +1,12 @@
+[package]
+name = "oliana_text"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+oliana_lib = { path = "../Oliana-Lib" }
+tokio =        { version = "1.41", features = ["full"] }
+num_cpus =     { version = "1.16" }
+
+mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "v0.3.1", features = ["cuda"] }
+

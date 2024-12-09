@@ -1,115 +1,129 @@
 
-# Oliana
+# Experiment status
 
-This repo contains the game runtime for Oliana! Non-techie details on the [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`),
-techie details below.
+## `Oliana-Lib`
 
-# Game Design Ideas
+**Goal:** For all behaviors common to other tools, place them here and include into the other programs.
 
+**Status:** `ollama_lib` gives some utility functions such as:
 
+ - `oliana_lib::files::get_cache_file(<file-name>)`
+    - uses `dirs` to join file paths to a local app-specific folder (ie `%LocalAppData%\AppName\<file-name>` on windows, `~/.cache/AppName/<file-name>` on linux)
+ - `oliana_lib::files::existinate(<local-file-path>, <url>)`
+    - Downloads file if it does not exist, returning the file path
 
-# Source Code
+ - `oliana_lib::err::eloc!()`
+    - Useful for adding line numbers to rust Error returns; we commonly use `-> Result<THE_TYPE_WE_WANT, Box<dyn std::error::Error>>` to avoid caring about detailed errors, but line numbers are nice to add to these!
 
-As with most rust programs, execution begins at `src/main.rs` `main()`.
+## `Oliana-Images`
 
-# Dependencies
+**Goal:** Build a stand-alone executable that can
 
-__Required__
+1. Download all files it needs to some local cache folder
+2. Execute a GPU-Accelerated text-to-image pipeline
 
- - [Rust](https://rustup.rs/)
- - [onnxruntime](https://onnxruntime.ai/)
-    - Arch: `sudo pacman -S onnxruntime-opt openmpi`
- - [ollama](https://ollama.com/)
-    - Arch: `sudo pacman -S ollama`
- - [libtorch-cuda](https://pytorch.org/)
-    - Arch: `yay -S libtorch-cuda`
-    - This gives diffusers CUDA capabilities, which we're engineering on the assumption exist b/c it's a well-tested path to executing models quickly.
+**Status:** ~~Success! At the moment the results are all hard-coded, but we have the minimum needed to be useful. We currently download all of `https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/*.safetensors` and run a GPU-accelerated image-generation, which takes approximately `10s` for 24 steps of inference producing a `512x512` image using an Nvidia A5000 (approx `0.4s/step`, including process-start, model-load, and image-save overhead)~~
 
-
-__Optional__
-
- - [cuDNN](https://developer.nvidia.com/cuDNN)
-    - Build with `cargo build --features cuda --release` to link against cuDNN and expose GPU processing capabilities of `floneum/kalosm`
-
-
-# Compiling
-
-To transform the source code into a `.exe` program, run
+UPDATE: Current system can build everything fine, but at runtime we have a missing function that isn't in any of the libraries: `target/release/oliana_images: symbol lookup error: target/release/oliana_images: undefined symbol: _ZN5torch3jit4loadERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESt8optionalIN3c106DeviceEEb`
 
 ```bash
-# NO LONGER POSSIBLE: cargo build --release
+# First most-reliable approach
+TORCH_CUDA_VERSION=cu124 cargo run --release --bin oliana_images
 
-# build.py wraps `cargo` and uses pip to download pytorch, which contains the implementation of torch we link against.
-python build.py --release
+# For Arch systems this is more reliable (see Misc Notes below, requires `yay -S libtorch-cxx11abi-cuda`)
+## LIBRARY_PATH=/opt/libtorch-cuda/lib LIBTORCH_INCLUDE=/opt/libtorch-cuda LIBTORCH_LIB=/opt/libtorch-cuda LIBTORCH_STATIC=1 cargo run --release --bin oliana_images
+
+LD_LIBRARY_PATH=/opt/libtorch-cuda/lib LIBTORCH_INCLUDE=/opt/libtorch-cuda LIBTORCH_LIB=/opt/libtorch-cuda cargo run --release --bin oliana_images
+
 
 ```
 
+Requirements for running bare `oliana_images[.exe]`:
 
-# Running
+ - Must add the folder containing `libtorch_cuda.so` to `LD_LIBRARY_PATH`. We will handle this in the launcher.
 
-After compiling, run `./target/release/Oliana[.exe]`
+## `Oliana-Text`
 
-You can directly compile & run in one step via `cargo run --release`
+**Goal:** Build a stand-alone executable that can
+
+1. Download all files it needs to some local cache folder
+2. Execute a GPU-Accelerated context-question-answer pipeline
+
+**Status:** The current implementation runs `microsoft/Phi-3.5-mini-instruct` on the GPU, but we don't control where model files are saved to. The library does respect `HF_HOME` though, so we can use another process to set this before running `oliana_text[.exe]` to control where model files are saved to.
+
 
 ```bash
-python build.py run --release -- -v --test-image-prompt "A photograph of the moon falling into the ocean"
+cargo run --release --bin oliana_text
+```
+
+Requirements for running bare `oliana_text[.exe]`:
+
+ - None! `\o/`
+
+
+## `Oliana-Server`
+
+**Goal:** Build a stand-alone webserver & library that allows bi-directional communication between a system without a GPU and a system WITH a GPU to run the following sub-tools:
+
+ - `oliana_images[.exe]`
+    - Given some text prompt, return in-progress images and the final image from a diffusion run on a GPU.
+ - `oliana_text[.exe]`
+    - Given some text prompt, return tokens as they are generated w/ a sentinel value to indicate the end at the final token.
+
+**Stretch Goal:** Keep the same model files in-memory so clients don't have to pay start-up costs for each request to generate an image or text.
+
+**Status:** We have a minimal server-client async RPC using `tarpc` + `serde` for binary transport over IPv6 and IPv4 TCP (some systems resolve `localhost` to `127.0.0.1`, others will resolve `localhost` to `::1/128`). We don't have a good client interface yet and the server doesn't interact with `Oliana-Images` or `Oliana-Text`.
+
+All of the above decisions mean our server can hold a long-term, two-way communication channel that can pass primitive types around; probably the most complex type we will pass is the result of `Oliana-Images`, which we can standardize as a `Vec<u8>` holding `.png` bytes of a single frame.
+
+
+
+```bash
+# In terminal A
+cargo run --release --bin oliana_server
+# In terminal B
+cargo run --release --bin oliana_client
 
 ```
 
-# Design Decisions Log
+## `Oliana-CLI`
 
- - We're using [ORT](https://ort.pyke.io/) `2.0` for local in-process LLM inferencing and [Ollama](https://ollama.com/) for local out-of-process LLM inferencing.
-    - Design reason for ORT: ONNX looks like a solid bet for long-term model ingestion, management, and is designed to support text and image-based AI models.
-    - Design reason for Ollama: Ollama just makes throwing pre-existing models at things easy; I see Ollama as a gateway to testing models which we will then manually convert to ONNX files for the game.
- - We're using [Bevy](https://bevyengine.org/) as our graphics framework; it has more capabilities than we will need and is cross-platform, all we will need to do is learn the engine and map our deisgns into Bevy's structures.
- - We're using Github Pages as our [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`) because it's free and easy to setup.
+**Goal:** Build a command-line tool capable of running the other tools to play `Oliana`-the-game in a command-line text-based aventure!
 
-# Miscellaneous To-Dos
+**Stretch Goal:** Also add capabilities to download the other tools off the github releases page or similar distribution channel; TODO think about packaging ideas & how updates will work
 
- - [ ] Which models would be best for various game mechanics? What are the hardware-requirement / performance trade-offs?
- - [x] There exist many graphics libraries, and rust has bindings to a lot of them. Which graphics system makes sense for a videogame, and do we want to focus local-only or play with a web-based design to serve graphics as HTML instead of native buttons? (https://github.com/rust-unofficial/awesome-rust?tabq=readme-ov-file#gui)
-    - Jeffrey decided on using [`bevy`](https://bevyengine.org/) because it's got capabilities out the wazoo; definitely a larger game engine than what we need but it's cross-platform and has tons of hooks to customize everything.
- - [ ] for long-term or plot-related LLM memory - what existing tools make sense to use? (https://github.com/jondot/awesome-rust-llm?tab=readme-ov-file#llm-memory)
+## `Oliana-GUI`
 
- - [ ] When loading `*.onnx` files w/ external tensor weights (ie in a folder w/ `` files containing actual weights), why doesn't `ORT` load everything? Relevant - https://github.com/pykeio/ort/issues/39
-    - We see error `op_kernel_context.h:42 const T* onnxruntime::OpKernelContext::Input(int) const [with T = onnxruntime::Tensor] Missing Input: onnx::Neg_58`, where `onnx::Neg_58` is a set of weights referenced by the original `*.onnx` file.
-    - This is likely our `utils/oneshot-convert-hf-model-to-onnx.py` missing some step yielding an incomplete result.
+**Goal:** Build a GUI tool capable of running the other tools to play `Oliana`-the-game in a graphical text-based aventure!
 
+**Stretch Goal:** Also add capabilities to download the other tools off the github releases page or similar distribution channel; TODO think about packaging ideas & how updates will work
 
-# Miscellaneous Research
+# Misc Notes
 
-`Wuerstchen` sounds like a nice image-generation model;... for people with 16gb+ vram Nvidia cards. As I only have a 12gb 3080ti and Intel's a770 doesn't have anything besides LLMs ported to it,
-a more resource-efficient image generator should be found. This thing looks promising!
- - https://github.com/Gadersd/stable-diffusion-burn/tree/main?tab=readme-ov-file#stable-diffusion-burn
+`Oliana-CLI[.exe]` and `Oliana-GUI[.exe]` are going to share a lot of logic; we may either place that in `Oliana-Lib` or we may create a shared `Oliana-GameLogic` library to hold it.
 
-This looks like a good beginning for vector databases & long-term information storage & retrieval LLM-style:
+`torch-sys` is a pain to build reliably; the easest approach is to use the system-provided copy of torch by running:
 
- - https://github.com/Mintplex-Labs/anything-llm
+ - `yay -S libtorch-cxx11abi-cpu libtorch-cxx11abi-cuda`
+    - Installs the libraries
+ - `sudo ln -s /opt/libtorch-cuda/lib/libtorch.so /usr/lib/libtorch.so`
+ - `sudo ln -s /opt/libtorch-cuda/lib/libc10.so /lib/libc10.so`
+ - `sudo ln -s /opt/libtorch-cuda/lib/libtorch_cpu.so /lib/libtorch_cpu.so`
+ - `sudo ln -s /opt/libtorch-cuda/lib/libtorch_cuda.so /lib/libtorch_cuda.so`
+ - `sudo ln -s /opt/libtorch-cuda/lib/libgomp-98b21ff3.so.1 /lib/libgomp-98b21ff3.so.1`
+    - Aids poorly-written linkers to find their libraries `-_-`
 
-This is a neat capability we should bolt on after getting basic AI image-gen done!
-
- - https://github.com/SET001/bevy_scroller
-
-Speaking of in-process image gen, this looks nice and simple!
-
- - https://github.com/RobertBeckebans/AI_text2img_diffusers-rs
-
-
-# Utility scripts
-
-
-## `oneshot-convert-hf-model-to-onnx.py`
-
-`utils/oneshot-convert-hf-model-to-onnx.py` exists to convert a hugginface repo to `*.onnx` files; it does not need any dependencies besides `git`, `python`, and the ability for `git-lfs` to be installed.
-
-Usage:
-
-```bash
-python utils/oneshot-convert-hf-model-to-onnx.py https://huggingface.co/Qwen/Qwen2.5-7B-Instruct
+Throw the following in `/usr/lib/pkgconfig/torch.pc`:
 
 ```
+libdir=/opt/libtorch-cuda/lib
+includedir=/opt/libtorch-cuda/include
 
-
-
+Name: torch
+Description: Torch Library
+Version: 11.0
+Libs: -L${libdir} -ltorch_cuda -ltorch_cpu
+Cflags: -I${includedir}
+```
 
 

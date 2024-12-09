@@ -1,0 +1,32 @@
+[package]
+name = "oliana_server"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "oliana_server_lib"
+path = "src/oliana_server_lib.rs"
+
+[[bin]]
+name = "oliana_server"
+path = "src/oliana_server.rs"
+
+[[bin]]
+name = "oliana_client"
+path = "src/oliana_client.rs"
+
+[dependencies]
+oliana_lib = { path = "../Oliana-Lib" }
+
+tokio =        { version = "1.0", features = ["full", "rt-multi-thread", "macros",] }
+num_cpus =     { version = "1.16" }
+futures =      { version = "0.3" }
+anyhow = "1.0"
+
+tarpc =        { version = "0.35", features = ["tokio1", "tokio1", "tcp", "serde-transport-bincode"] }
+
+serde = { version = "1.0", features = ["derive"] }
+
+clap =         { version = "4", features = ["derive"] }
+
+

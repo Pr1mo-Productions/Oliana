@@ -1,0 +1,15 @@
+[package]
+name = "oliana_lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio =        { version = "1.41", features = ["full"] }
+downloader =   { version = "0.2"  }
+dirs =         { version = "5.0"  }
+indicatif =    { version = "0.17" }
+walkdir =      { version = "2" }
+filetime =     { version = "0.2"}
+sysinfo =      { version = "0.33" }
+
+
