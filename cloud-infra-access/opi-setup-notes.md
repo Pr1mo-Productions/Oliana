@@ -85,3 +85,7 @@ makepkg -si
 
 
 ```
+
+# Current TODOs
+
+`npm run server:db:init && npm start --prod` does not actually start the server -_-
