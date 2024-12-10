@@ -17,6 +17,11 @@ usermod -l user alarm
 # Install good stuff
 pacman -S base-devel git htop
 
+# Postgres is a dependency of Planka
+sudo pacman -S postgresql
+sudo -u postgres initdb -D /var/lib/postgres/data
+sudo systemctl enable --now postgresql
+
 # Install Planka - https://www.ipv6.rs/tutorial/Arch_Linux/Planka/
 sudo pacman -S nodejs npm git
 cd /opt
@@ -24,9 +29,16 @@ sudo mkdir /opt/planka
 sudo chown $(whoami) /opt/planka
 git clone https://github.com/plankanban/planka.git /opt/planka
 cd /opt/planka
+
+sudo pacman -S nodejs-concurrently # Undeclared dependency of planka
+sudo pacman -S python-distutils-extra # Undeclared dependency of planka
+
 npm install
 
-sudo pacman -S nodejs-concurrently # Undeclared dependency
+sudo -u postgres createuser 'user' # create the DB user that planka wants
+
+# Test NPM server w/
+npm run server:db:init && npm start --prod
 
 sudo tee /etc/systemd/system/planka.service <<EOF
 [Unit]
@@ -58,5 +70,18 @@ sudo mkswap -U clear --size 2G --file /swapfile
 vim /etc/fstab <<EOF
 /swapfile none swap defaults 0 0
 EOF
+
+
+# Install an AUR helper
+
+sudo mkdir /opt/yay
+sudo chown $(whoami) /opt/yay
+git clone https://aur.archlinux.org/yay.git /opt/yay
+cd /opt/yay
+makepkg -si
+
+
+
+
 
 ```
