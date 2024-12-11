@@ -105,6 +105,9 @@ cargo run --release --bin oliana_client
 
 **Stretch Goal:** Also add capabilities to download the other tools off the github releases page or similar distribution channel; TODO think about packaging ideas & how updates will work
 
+[Tracking Issue 1](https://github.com/BM-Enterprises/Oliana/issues/1)
+
+
 # Misc Notes
 
 `Oliana-CLI[.exe]` and `Oliana-GUI[.exe]` are going to share a lot of logic; we may either place that in `Oliana-Lib` or we may create a shared `Oliana-GameLogic` library to hold it.
