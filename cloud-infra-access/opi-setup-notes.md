@@ -138,10 +138,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now on_boot
 
 
-# Setup focalboard, another Kanban server idea
-# yay -S focalboard-server
-# ^^ Edit nope, still too complicated for me -_-
-
 
 
 
