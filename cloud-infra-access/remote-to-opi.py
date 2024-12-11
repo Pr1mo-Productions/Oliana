@@ -44,7 +44,7 @@ cmd = [
   'ssh',
   '-i', ssh_key_path,
   '-p', '92',
-  'user@publicip'+'.jmcateer'+'.com' # TODO opi-specific DNS name
+  'user@opi'+'.jmcateer'+'.com' # TODO opi-specific DNS name
 ]
 print(f'>>> {" ".join(cmd)}')
 
