@@ -81,6 +81,61 @@ cd /opt/yay
 makepkg -si
 
 
+# Setup a service to regularly update a DNS record
+yay -S ddclient
+sudo vim /etc/ddclient/ddclient.conf # put in hostname & auth credentials for opi.jmcateer.com
+sudo tee /etc/systemd/system/ddclient.service <<EOF
+[Unit]
+Description=Dynamic DNS updater
+Wants=network-online.target
+After=network-online.target nss-lookup.target
+
+[Service]
+Type=exec
+Environment=daemon_interval=10m
+ExecStart=/usr/bin/ddclient --daemon \${daemon_interval} --foreground
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ddclient
+
+
+# Create a service to run various commands in /on_boot.sh on boot
+
+sudo vim /on_boot.sh <<EOF
+#!/bin/bash
+
+mount -n -o remount,rw /
+swapon /swapfile
+
+EOF
+sudo tee /etc/systemd/system/on_boot.service <<EOF
+[Unit]
+Description=Planka Server
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=1
+User=root
+WorkingDirectory=/
+ExecStart=/bin/sh -c /on_boot.sh
+RuntimeMaxSec=1200m
+StandardError=journal
+StandardOutput=journal
+StandardInput=null
+TimeoutStopSec=4
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now on_boot
 
 
 
