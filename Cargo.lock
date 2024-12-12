@@ -2145,6 +2145,7 @@ dependencies = [
  "oliana_lib",
  "pyo3",
  "tokio",
+ "walkdir",
 ]
 
 [[package]]

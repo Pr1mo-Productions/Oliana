@@ -8,7 +8,7 @@ edition = "2021"
 oliana_lib = { path = "../Oliana-Lib" }
 tokio =        { version = "1.41", features = ["full"] }
 num_cpus =     { version = "1.16" }
-
+walkdir =      { version = "2" }
 
 
 [dependencies.pyo3]

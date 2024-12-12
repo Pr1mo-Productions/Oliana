@@ -65,9 +65,32 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     std::env::var("PYTHONPATH").unwrap_or("".to_string()),
   ]).map_err(oliana_lib::eloc!())?;
 
-
   std::env::set_var(
     "PYTHONPATH", pythonpath
+  );
+
+  // we iterate all 'lib' directories under site_packages and add them to PATH.
+  let mut site_packages_lib_folders: Vec<String> = vec![];
+  for entry in walkdir::WalkDir::new(&site_packages[..]).into_iter().filter_map(|e| e.ok()) {
+    if let Some(file_name) = entry.path().file_name() {
+      site_packages_lib_folders.push(
+        entry.path().to_string_lossy().to_string()
+      );
+    }
+  }
+  // Finally add pre-existing PATH
+  let pre_existing_path = std::env::var("PATH").unwrap_or("".to_string());
+  let pre_existing_paths = std::env::split_paths(&pre_existing_path);
+  for path in pre_existing_paths {
+    site_packages_lib_folders.push(
+      path.to_string_lossy().to_string()
+    );
+  }
+
+  let os_path = std::env::join_paths(&site_packages_lib_folders[..]).map_err(oliana_lib::eloc!())?;
+
+  std::env::set_var(
+    "PATH", os_path
   );
 
   let hf_home = oliana_lib::files::get_cache_file("Oliana-Images-hf_home").await.map_err(oliana_lib::eloc!())?;
@@ -148,6 +171,15 @@ fn python_main(site_packages: &str) -> PyResult<()> {
           py,
           c_str!(r#"
 def main():
+  import traceback
+  import os
+  try:
+    if hasattr(os, 'add_dll_directory'):
+      for folder in os.environ.get('PATH', '').split(os.pathsep):
+        os.add_dll_directory(folder)
+  except:
+    traceback.print_exc()
+
   import torch
   from diffusers import StableDiffusionXLPipeline, EulerDiscreteScheduler
 
