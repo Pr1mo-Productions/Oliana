@@ -3,18 +3,16 @@ name = "oliana_images"
 version = "0.1.0"
 edition = "2021"
 
-build = "build.rs"
 
 [dependencies]
 oliana_lib = { path = "../Oliana-Lib" }
 tokio =        { version = "1.41", features = ["full"] }
 num_cpus =     { version = "1.16" }
-#diffusers =    { version = "0.3" }
-diffusers = { git = "https://github.com/BM-Enterprises/diffusers-rs.git" }
-#diffusers = { path = "../../diffusers-rs" }
-tch =       { version = "0.18" }
-torch-sys = { version = "0.18" }
 
-image = { version = "0.24.6" }
-imageproc = { version = "0.23.0" }
+
+
+[dependencies.pyo3]
+version = "0.23.3"
+features = ["auto-initialize", "abi3", "abi3-py39", "generate-import-lib"]
+
 
