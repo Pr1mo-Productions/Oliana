@@ -205,7 +205,7 @@ def main():
   # If you use negative prompt, you could get more stable and accurate generated images.
   negative_prompt = '(deformed iris, deformed pupils, deformed nose, deformed mouse), worst  quality, low quality, ugly, duplicate, morbid,  mutilated, extra fingers, mutated hands, poorly drawn hands, poorly  drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad  proportions, extra limbs, cloned face, disfigured, gross proportions,  malformed limbs, missing arms, missing legs'
 
-  image = pipe(prompt=prompt, negative_prompt=negative, guidance_scale=3.5, num_inference_steps=10).images[0]
+  image = pipe(prompt=prompt, negative_prompt=negative_prompt, guidance_scale=3.5, num_inference_steps=10).images[0]
 
   image.save("./out.png")
 
