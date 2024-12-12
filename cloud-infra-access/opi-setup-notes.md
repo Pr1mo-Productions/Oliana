@@ -23,47 +23,47 @@ sudo -u postgres initdb -D /var/lib/postgres/data
 sudo systemctl enable --now postgresql
 
 # Install Planka - https://www.ipv6.rs/tutorial/Arch_Linux/Planka/
-sudo pacman -S nodejs npm git
-cd /opt
-sudo mkdir /opt/planka
-sudo chown $(whoami) /opt/planka
-git clone https://github.com/plankanban/planka.git /opt/planka
-cd /opt/planka
-
-sudo pacman -S nodejs-concurrently # Undeclared dependency of planka
-sudo pacman -S python-distutils-extra # Undeclared dependency of planka
-
-npm install
-
-sudo -u postgres createuser 'user' # create the DB user that planka wants
-
-# Test NPM server w/
-npm run server:db:init && npm start --prod
-
-sudo tee /etc/systemd/system/planka.service <<EOF
-[Unit]
-Description=Planka Server
-StartLimitIntervalSec=0
-
-[Service]
-Type=simple
-Restart=always
-RestartSec=1
-User=user
-WorkingDirectory=/opt/planka
-ExecStart=/bin/sh -c /opt/planka/start.sh
-RuntimeMaxSec=1200m
-StandardError=journal
-StandardOutput=journal
-StandardInput=null
-TimeoutStopSec=4
-
-[Install]
-WantedBy=multi-user.target
-
-EOF
-sudo systemctl daemon-reload
-sudo systemctl enable --now planka
+#sudo pacman -S nodejs npm git
+#cd /opt
+#sudo mkdir /opt/planka
+#sudo chown $(whoami) /opt/planka
+#git clone https://github.com/plankanban/planka.git /opt/planka
+#cd /opt/planka
+#
+#sudo pacman -S nodejs-concurrently # Undeclared dependency of planka
+#sudo pacman -S python-distutils-extra # Undeclared dependency of planka
+#
+#npm install
+#
+#sudo -u postgres createuser 'user' # create the DB user that planka wants
+#
+## Test NPM server w/
+#npm run server:db:init && npm start --prod
+#
+#sudo tee /etc/systemd/system/planka.service <<EOF
+#[Unit]
+#Description=Planka Server
+#StartLimitIntervalSec=0
+#
+#[Service]
+#Type=simple
+#Restart=always
+#RestartSec=1
+#User=user
+#WorkingDirectory=/opt/planka
+#ExecStart=/bin/sh -c /opt/planka/start.sh
+#RuntimeMaxSec=1200m
+#StandardError=journal
+#StandardOutput=journal
+#StandardInput=null
+#TimeoutStopSec=4
+#
+#[Install]
+#WantedBy=multi-user.target
+#
+#EOF
+#sudo systemctl daemon-reload
+#sudo systemctl enable --now planka
 
 # Setup some Swap space
 sudo mkswap -U clear --size 2G --file /swapfile
@@ -102,7 +102,6 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now ddclient
 
-
 # Create a service to run various commands in /on_boot.sh on boot
 
 sudo vim /on_boot.sh <<EOF
@@ -137,7 +136,8 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now on_boot
 
-
+# Attempt to setup nextcloud for team docs + nextcloud-app-deck, which provided a kanban capability
+yay -S nextcloud
 
 
 
