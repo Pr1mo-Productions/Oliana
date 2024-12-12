@@ -138,7 +138,7 @@ sudo systemctl enable --now on_boot
 
 # Attempt to setup nextcloud for team docs + nextcloud-app-deck, which provided a kanban capability
 yay -S nextcloud
-
+# TODO see remaining config at https://wiki.archlinux.org/title/Nextcloud
 
 
 ```
