@@ -273,7 +273,7 @@ def main(env_var_work_dir):
       if 'KeyboardInterrupt' in exception_str: # We actually do want these to be fatal!
         break
 
-    time.sleep(0.25) # Poll several times a second for new work
+    time.sleep(0.100) # Poll several times a second for new work
 
 "#),
           c_str!("in_memory.py"),
