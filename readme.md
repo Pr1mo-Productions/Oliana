@@ -29,25 +29,16 @@ Oliana is made up of several sub-programs. This design minimises damage when one
 1. Download all files it needs to some local cache folder
 2. Execute a GPU-Accelerated text-to-image pipeline
 
-**Status:** ~~Success! At the moment the results are all hard-coded, but we have the minimum needed to be useful. We currently download all of `https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/*.safetensors` and run a GPU-accelerated image-generation, which takes approximately `10s` for 24 steps of inference producing a `512x512` image using an Nvidia A5000 (approx `0.4s/step`, including process-start, model-load, and image-save overhead)~~
+**Status:** Success! When run like `oliana_images[.exe] --workdir /path/to/folder`, any newly-created `X.json` files are read and `X.png` is written back. If an error occurs, `X.txt` will contain a python stack-trace. Image model files are stored in `~/.cache/oliana_lib/Oliana-Images-hf_home` (linux, mac) or `%LOCALAPPDATA%\oliana_lib\Oliana-Images-hf_home` (windows)
 
-UPDATE: Current system can build everything fine, but at runtime we have a missing function that isn't in any of the libraries: `target/release/oliana_images: symbol lookup error: target/release/oliana_images: undefined symbol: _ZN5torch3jit4loadERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESt8optionalIN3c106DeviceEEb`
+**Dependencies**
 
-```bash
-# First most-reliable approach
-TORCH_CUDA_VERSION=cu124 cargo run --release --bin oliana_images
-
-# For Arch systems this is more reliable (see Misc Notes below, requires `yay -S libtorch-cxx11abi-cuda`)
-## LIBRARY_PATH=/opt/libtorch-cuda/lib LIBTORCH_INCLUDE=/opt/libtorch-cuda LIBTORCH_LIB=/opt/libtorch-cuda LIBTORCH_STATIC=1 cargo run --release --bin oliana_images
-
-LD_LIBRARY_PATH=/opt/libtorch-cuda/lib LIBTORCH_INCLUDE=/opt/libtorch-cuda LIBTORCH_LIB=/opt/libtorch-cuda cargo run --release --bin oliana_images
+ - Python `3.10+`
+    - the program links against your system python and installs all libraries under `~/.cache/oliana_lib/Oliana-Images-site_packages` (linux, mac) or `%LOCALAPPDATA%\oliana_lib\Oliana-Images-site_packages` (windows)
+ - CUDA
+    - consult your operating system documentation for Nvidia drivers & Cuda userspace libraries.
 
 
-```
-
-Requirements for running bare `oliana_images[.exe]`:
-
- - Must add the folder containing `libtorch_cuda.so` to `LD_LIBRARY_PATH`. We will handle this in the launcher.
 
 ## `Oliana-Text`
 

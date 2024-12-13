@@ -42,18 +42,22 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
     // This is where we do some general config of how & where the child processes will live.
     // Once registered, the server will regularly poll .ensure_registered_procs_running() to re-spawn anything that dies.
-    let ai_shared_results_folder = track_proc_dir.join("ai-results");
+    let ai_workdir_images = track_proc_dir.join("image-procesing");
+    let ai_workdir_text = track_proc_dir.join("text-procesing");
 
-    if !ai_shared_results_folder.exists() {
-        std::fs::create_dir_all(ai_shared_results_folder.clone()).map_err(oliana_lib::eloc!())?;
+    if !ai_workdir_images.exists() {
+        std::fs::create_dir_all(ai_workdir_images.clone()).map_err(oliana_lib::eloc!())?;
+    }
+    if !ai_workdir_text.exists() {
+        std::fs::create_dir_all(ai_workdir_text.clone()).map_err(oliana_lib::eloc!())?;
     }
 
     procs.register_tracked_proc("oliana_images", &[
-        "--workdir", &ai_shared_results_folder.to_string_lossy()
+        "--workdir", &ai_workdir_images.to_string_lossy()
     ]);
 
     procs.register_tracked_proc("oliana_text", &[
-        "--workdir", &ai_shared_results_folder.to_string_lossy()
+        "--workdir", &ai_workdir_text.to_string_lossy()
     ]);
 
     procs.ensure_registered_procs_running()?;
@@ -71,7 +75,8 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("expected_bin_directory = {expected_bin_directory:?} (Where eg oliana_images[.exe] can be found)");
     println!("track_proc_dir = {track_proc_dir:?} (Where eg oliana_images[.exe]-pid.txt may be found)");
-    println!("ai_shared_results_folder = {ai_shared_results_folder:?} (Where images and text are generated into and read by the server)");
+    println!("ai_workdir_images = {ai_workdir_images:?} (Where images are generated into and read by the server)");
+    println!("ai_workdir_text = {ai_workdir_text:?} (Where text is generated into and read by the server)");
 
 
     // JSON transport is provided by the json_transport tarpc module. It makes it easy
