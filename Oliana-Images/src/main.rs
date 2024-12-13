@@ -21,40 +21,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use pyo3::ffi::c_str;
 
 async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
-  let out_file_path = "out.png";
-  let prompt_txt = "Photograph of a cowboy riding over the moon at night";
+  let args: Vec<String> = std::env::args().collect();
+  let mut env_var_work_dir = std::env::var("WORK_DIR").unwrap_or("".to_string());
 
-  /*
-  // First download all the models
-  let local_clip_v2_1 = oliana_lib::files::get_cache_file("rust-stable-diffusion-v2-1_clip_v2.1.safetensors").await.map_err(oliana_lib::eloc!())?;
-  let local_clip_v2_1_path = oliana_lib::files::existinate(
-    &local_clip_v2_1, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/clip_v2.1.safetensors"
-  ).await.map_err(oliana_lib::eloc!())?;
-  let local_clip_v2_1_path_s = local_clip_v2_1_path.to_string_lossy();
+  if let Some(work_dir_i) = args.iter().position(|n| n == "--work-dir" || n == "--workdir") {
+    if work_dir_i < args.len()-1 {
+      env_var_work_dir = args[work_dir_i+1].clone();
+    }
+  }
 
-  let local_vae_v2_1 = oliana_lib::files::get_cache_file("rust-stable-diffusion-v2-1_vae_v2.1.safetensors").await.map_err(oliana_lib::eloc!())?;
-  let local_vae_v2_1_path = oliana_lib::files::existinate(
-    &local_vae_v2_1, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/vae_v2.1.safetensors"
-  ).await.map_err(oliana_lib::eloc!())?;
-  let local_vae_v2_1_path_s = local_vae_v2_1_path.to_string_lossy();
 
-  let local_unet_v2_1 = oliana_lib::files::get_cache_file("rust-stable-diffusion-v2-1_unet_v2.1.safetensors").await.map_err(oliana_lib::eloc!())?;
-  let local_unet_v2_1_path = oliana_lib::files::existinate(
-    &local_unet_v2_1, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/resolve/main/weights/unet_v2.1.safetensors"
-  ).await.map_err(oliana_lib::eloc!())?;
-  let local_unet_v2_1_path_s = local_unet_v2_1_path.to_string_lossy();
+  if env_var_work_dir.len() < 1 {
+    eprintln!("Error, must have either WORK_DIR as an environment variable OR pass --work-dir as an argument, exiting!");
+    return Ok(());
+  }
 
-  let bpe_simple_vocab_16e6_txt = oliana_lib::files::get_cache_file("rust-stable-diffusion-v2-1_bpe_simple_vocab_16e6.txt").await.map_err(oliana_lib::eloc!())?;
-  let bpe_simple_vocab_16e6_txt_path = oliana_lib::files::existinate(
-    &bpe_simple_vocab_16e6_txt, "https://huggingface.co/lmz/rust-stable-diffusion-v2-1/raw/main/weights/bpe_simple_vocab_16e6.txt"
-  ).await.map_err(oliana_lib::eloc!())?;
-  */
+  println!("");
+  println!("Using {env_var_work_dir} as a work directory.");
+  println!("write files named 'NAME.json' containing objects like:");
+  println!(r#" {{"prompt": "A cow jumps over the moon while fireworks explode in the air", "negative_prompt": "worst quality, low quality, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, extra limbs, cloned face, disfigured, malformed limbs, missing arms, missing legs", "guidance_scale": 3.5, "num_inference_steps": 10 }}"#);
+  println!("and wait for either 'NAME.png' or 'NAME.txt' to be written back from this process.");
+  println!("'NAME.json' will remain post-generation, and if the file's mtime becomes newer it will be processed again with the new contents.");
+  println!("If 'NAME.json' has an mtime older than this process's start time, it will not be processed.");
+  println!("");
 
+  tokio::fs::create_dir_all(&env_var_work_dir[..]).await?;
+
+  std::env::set_var(
+    "WORK_DIR", env_var_work_dir.clone()
+  );
 
   let site_packages = oliana_lib::files::get_cache_file("Oliana-Images-site_packages").await.map_err(oliana_lib::eloc!())?;
   let site_packages = site_packages.to_string_lossy();
@@ -101,12 +100,12 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     "HF_HOME", hf_home.to_string()
   );
 
-  python_main(&site_packages).map_err(oliana_lib::eloc!())?;
+  python_main(&site_packages, &env_var_work_dir).map_err(oliana_lib::eloc!())?;
 
   Ok(())
 }
 
-fn python_main(site_packages: &str) -> PyResult<()> {
+fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
   Python::with_gil(|py| {
       let sys = py.import("sys")?;
       let version: String = sys.getattr("version")?.extract()?;
@@ -167,12 +166,26 @@ fn python_main(site_packages: &str) -> PyResult<()> {
       let accelerate = py.import("accelerate")?;
       eprintln!("accelerate = {:?}", accelerate);*/ // ^^ accelerate is more trouble than its worth
 
+      if let Err(e) = py.import("json5") {
+        eprintln!("{:?}", e);
+        let arg_vals = vec![
+          "install".to_string(), format!("--target={site_packages}"), "json5".to_string(),
+        ];
+        let args = (arg_vals, );
+        pip_main.call1(py, args)?;
+      }
+
+      let json5 = py.import("json5")?;
+      eprintln!("json5 = {:?}", json5);
+
       let python_module = PyModule::from_code(
           py,
           c_str!(r#"
-def main():
+def main(env_var_work_dir):
   import traceback
   import os
+  import time
+  import json5
   try:
     if hasattr(os, 'add_dll_directory'):
       for folder in os.environ.get('PATH', '').split(os.pathsep):
@@ -200,14 +213,59 @@ def main():
     pipe.scheduler.config, timestep_spacing="trailing"
   )
 
-  prompt = "Albert Einstein in a surrealist Cyberpunk 2077 world, hyperrealistic"
+  # Now we poll env_var_work_dir forever!
+  our_start_time = int(time.time())
+  last_seen_mtime = dict()
+  allowed_errors_remaining = 100
+  while allowed_errors_remaining > 0:
+    try:
+      for file_name in os.listdir(env_var_work_dir):
+        full_path = os.path.join(env_var_work_dir, file_name)
+        if os.path.isfile(full_path):
+          if full_path.casefold().endswith(".json".casefold()):
+            file_mtime = os.path.getmtime(full_path)
+            if file_mtime > our_start_time and last_seen_mtime.get(full_path, 0) < file_mtime:
+              # We either have NOT seen this file yet or it has been updated, process it!
+              file_name_no_extension, _unused_ext = os.path.splitext(file_name)
+              print(f'Processing {full_path}')
+              out_txt_file = os.path.join(env_var_work_dir, f'{file_name_no_extension}.txt')
+              out_png_file = os.path.join(env_var_work_dir, f'{file_name_no_extension}.png')
+              try:
+                last_seen_mtime[full_path] = file_mtime + 1
 
-  # If you use negative prompt, you could get more stable and accurate generated images.
-  negative_prompt = '(deformed iris, deformed pupils, deformed nose, deformed mouse), worst  quality, low quality, ugly, duplicate, morbid,  mutilated, extra fingers, mutated hands, poorly drawn hands, poorly  drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad  proportions, extra limbs, cloned face, disfigured, gross proportions,  malformed limbs, missing arms, missing legs'
+                input_data = dict()
+                with open(full_path, 'r') as fd:
+                  input_data = json5.loads(fd.read())
 
-  image = pipe(prompt=prompt, negative_prompt=negative_prompt, guidance_scale=3.5, num_inference_steps=10).images[0]
+                print(f'Read input_data = {input_data}')
 
-  image.save("./out.png")
+                prompt = input_data.get('prompt', None)
+                negative_prompt = input_data.get('negative_prompt', None)
+                guidance_scale = input_data.get('guidance_scale', 3.5)
+                num_inference_steps = int(input_data.get('num_inference_steps', 10))
+
+                image = pipe(prompt=prompt, negative_prompt=negative_prompt, guidance_scale=guidance_scale, num_inference_steps=num_inference_steps).images[0]
+
+                print(f'Saving {out_png_file}')
+                image.save(out_png_file)
+
+              except:
+                allowed_errors_remaining -= 1
+                traceback.print_exc()
+                if 'KeyboardInterrupt' in exception_str: # We actually do want these to be fatal!
+                  allowed_errors_remaining -= 999
+                with open(out_txt_file, 'w') as fd:
+                  fd.write(traceback.format_exc())
+
+    except:
+      allowed_errors_remaining -= 1
+      traceback.print_exc()
+      exception_str = traceback.format_exc()
+
+      if 'KeyboardInterrupt' in exception_str: # We actually do want these to be fatal!
+        break
+
+    time.sleep(0.25) # Poll several times a second for new work
 
 "#),
           c_str!("in_memory.py"),
@@ -216,8 +274,7 @@ def main():
 
       let python_entry_fn: Py<PyAny> = python_module.getattr("main")?.into();
 
-      python_entry_fn.call0(py)?;
-
+      python_entry_fn.call1(py, (env_var_work_dir, ) )?;
 
       Ok(())
   })
