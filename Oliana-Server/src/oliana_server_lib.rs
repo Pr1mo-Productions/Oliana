@@ -92,6 +92,15 @@ impl Oliana for OlianaServer {
         let input_data_s = input_data.to_string();
 
         let current_text_input_json = self.get_current_text_input_json_path();
+
+        let response_txt_file = self.get_current_text_output_txt_path();
+        if response_txt_file.exists() {
+            if let Err(e) = tokio::fs::remove_file(response_txt_file).await {
+                eprintln!("[ tokio::fs::remove_file ] {:?}", e);
+                return format!("[ tokio::fs::remove_file ] {:?}", e);
+            }
+        }
+
         if let Err(e) = tokio::fs::write(current_text_input_json, input_data_s.as_bytes()).await {
             eprintln!("[ tokio::fs::write ] {:?}", e);
             return format!("[ tokio::fs::write ] {:?}", e);
