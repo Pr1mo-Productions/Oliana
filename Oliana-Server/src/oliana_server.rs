@@ -69,6 +69,19 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
     let shareable_procs = std::sync::Arc::new(std::sync::RwLock::new(procs));
 
+    // Start an infinite tokio task to call ensure_registered_procs_running()? every 2 seconds or so.
+    let ensure_registered_procs_running_t_shareable_procs = shareable_procs.clone();
+    tokio::task::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            if let Ok(mut write_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_write() {
+                if let Err(e) = write_lock_guard.ensure_registered_procs_running() {
+                    eprintln!("Error polling ensure_registered_procs_running: {:?}", e);
+                }
+            }
+        }
+    });
+
     let port: u16 = 9050;
 
     let ipv4_server_addr = (std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), port);
