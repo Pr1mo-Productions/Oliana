@@ -203,6 +203,13 @@ def main(env_var_work_dir):
     print('NO CUDA DEVICES DETECTED!')
     raise Excepion('NO CUDA DEVICES DETECTED!')
 
+  try:
+    fraction = float(os.environ.get('PER_PROC_MEM_FRACT', '1'))
+    torch.cuda.set_per_process_memory_fraction(fraction)
+    print(f'torch.cuda.set_per_process_memory_fraction({fraction}) (set by PER_PROC_MEM_FRACT, from 0.0 to 1.0)')
+  except:
+    traceback.print_exc()
+
   # You can replace the checkpoint id with several koala models as below:
   # "etri-vilab/koala-lightning-700m"
 

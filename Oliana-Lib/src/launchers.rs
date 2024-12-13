@@ -120,6 +120,10 @@ impl OneTrackedProc {
   }
 
   pub fn spawn_proc(&self, args: &Vec<String>, spawned_child_holder: &mut Vec<std::process::Child>) -> Result<(), Box<dyn std::error::Error>> {
+
+    let debug_process_line = format!("{} {}", self.filesystem_bin_path.display(), args.join(" "));
+    eprintln!("Spawning the process: {debug_process_line}");
+
     let child = std::process::Command::new(&self.filesystem_bin_path)
                   .args(args)
                   .spawn().map_err(crate::err::eloc!())?;
@@ -133,6 +137,8 @@ impl OneTrackedProc {
     let pid = child.id();
 
     let pid_file_content = format!("{pid}");
+
+    eprintln!("Writing PID ({}) of new {} to {}", &pid_file_content[..], self.filesystem_bin_path.display(), self.filesystem_pid_filepath.display());
 
     std::fs::write(&self.filesystem_pid_filepath, pid_file_content).map_err(crate::err::eloc!())?;
 

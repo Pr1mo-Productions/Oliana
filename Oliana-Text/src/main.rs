@@ -18,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 use mistralrs::{
+    MemoryGpuConfig,
     IsqType, PagedAttentionMetaBuilder, TextMessageRole, TextMessages, TextModelBuilder,
 };
 
@@ -62,10 +63,16 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     "HF_HOME", hf_home.to_string()
   );
 
+  let allowed_vram_fraction: f32 = std::env::var("PER_PROC_MEM_FRACT").unwrap_or("1".to_string()).parse().unwrap_or(1.0 as f32);
+  println!("PER_PROC_MEM_FRACT = {allowed_vram_fraction} (set by PER_PROC_MEM_FRACT, from 0.0 to 1.0)");
+
   let model = TextModelBuilder::new("microsoft/Phi-3.5-mini-instruct".to_string())
         .with_isq(IsqType::Q8_0)
         .with_logging()
-        .with_paged_attn(|| PagedAttentionMetaBuilder::default().build())?
+        .with_paged_attn(|| PagedAttentionMetaBuilder::default()
+            .with_gpu_memory(MemoryGpuConfig::Utilization(allowed_vram_fraction))
+            .build()
+        )?
         .build()
         .await.map_err(oliana_lib::eloc!())?;
 

@@ -52,6 +52,11 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(ai_workdir_text.clone()).map_err(oliana_lib::eloc!())?;
     }
 
+    // We set & pass down this value which backends may read to avoid over-allocating eachother's slice of the GPU pie.
+    std::env::set_var(
+      "PER_PROC_MEM_FRACT", "0.40"
+    );
+
     procs.register_tracked_proc("oliana_images", &[
         "--workdir", &ai_workdir_images.to_string_lossy()
     ]);
