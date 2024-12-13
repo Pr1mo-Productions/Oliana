@@ -10,3 +10,7 @@ num_cpus =     { version = "1.16" }
 
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "v0.3.1", features = ["cuda"] }
 
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1" }
+
+

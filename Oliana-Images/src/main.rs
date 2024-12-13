@@ -34,7 +34,6 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     }
   }
 
-
   if env_var_work_dir.len() < 1 {
     eprintln!("Error, must have either WORK_DIR as an environment variable OR pass --work-dir as an argument, exiting!");
     return Ok(());
@@ -95,6 +94,8 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   let hf_home = oliana_lib::files::get_cache_file("Oliana-Images-hf_home").await.map_err(oliana_lib::eloc!())?;
   let hf_home = hf_home.to_string_lossy();
   tokio::fs::create_dir_all(&hf_home[..]).await?;
+
+  eprintln!("Storing model data at {hf_home}");
 
   std::env::set_var(
     "HF_HOME", hf_home.to_string()

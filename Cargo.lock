@@ -2182,6 +2182,8 @@ dependencies = [
  "mistralrs",
  "num_cpus",
  "oliana_lib",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
