@@ -98,7 +98,31 @@ impl OneTrackedProc {
       // If <pid> is no longer in the process list, it exited!
       // If <pid> is in the process list, return if it's alive or not (which ought to always be true)
       if let Some(process) = sinfo.process(sysinfo::Pid::from_u32(pid)) {
-        return Ok(true); // If we have a Process struct after a refresh, <pid> is still running!
+        // Process exists, should we reap it?
+        match process.status() {
+          sysinfo::ProcessStatus::Zombie | sysinfo::ProcessStatus::Dead => {
+            // Process _just_ exited, therefore it is _not_ running!
+
+            // Retain all children which are NOT this process.
+            spawned_child_holder.retain_mut(|c| {
+              if c.id() != pid {
+                true
+              }
+              else {
+                // Reap the child process
+                if let Err(e) = c.wait() {
+                  eprintln!("{:?}", e);
+                }
+                false
+              }
+            });
+
+            return Ok(false);
+          }
+          unused => {
+            return Ok(true); // <pid> is still running!
+          }
+        }
       }
       else {
         // If we thought we had a PID and no longer have it, re-scan processes in spawned_child_holder and remove them
