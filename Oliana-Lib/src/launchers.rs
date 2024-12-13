@@ -110,6 +110,7 @@ impl OneTrackedProc {
               }
               Err(e) => {
                 /* misc OS error, keep reference */
+                eprintln!("Within spawned_child_holder.retain_mut: {:?}", e);
                 true
               },
           }
