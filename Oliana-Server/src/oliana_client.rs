@@ -40,13 +40,16 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport.await?).spawn();
 
   if args.command == Command::Text {
-    let text_begin_diagnostic = client.generate_text_begin(tarpc::context::current(), args.prompt.clone() ).await?;
+    let text_begin_diagnostic = client.generate_text_begin(tarpc::context::current(), "You are a helpful office assistant who eagerly answers questions with expert advice.".to_string(), args.prompt.clone() ).await?;
     eprintln!("From Server: {:?}", &text_begin_diagnostic);
     let mut generated_text = String::with_capacity(4096);
     while let Some(next_token) = client.generate_text_next_token(tarpc::context::current()).await? {
+      eprint!("{}", &next_token);
+      eprint!(" ");
       generated_text.push_str(&next_token);
       generated_text.push_str(" ");
     }
+    eprintln!();
     if args.output.len() > 0 {
       eprintln!("Writing {} chars to {}", generated_text.len(), &args.output);
       tokio::fs::write(&args.output, &generated_text).await?;
@@ -54,6 +57,8 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   }
   else if args.command == Command::Image {
     //let reply = client.hello(tarpc::context::current(), format!("1")).await?;
+
+    std::unimplemented!()
 
   }
 
