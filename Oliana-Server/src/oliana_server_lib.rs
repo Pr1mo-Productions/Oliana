@@ -1,5 +1,6 @@
 #![allow(unused_imports, unused_variables, unused_mut)]
 
+use tokio::io::AsyncReadExt;
 use futures::prelude::*;
 use tarpc::{
     client, context,
@@ -14,6 +15,12 @@ pub trait Oliana {
     async fn generate_text_begin(system_prompt: String, user_prompt: String) -> String;
     /// Returns None when token generation is complete
     async fn generate_text_next_token() -> Option<String>;
+
+    /// Runs an AI model and returns immediately; callers should wait on generate_image_get_result() to read a .png vector of bytes back
+    async fn generate_image_begin(prompt: String, negative_prompt: String, guidance_scale: f32, num_inference_steps: u32) -> String;
+    /// Waits until image has completed and returns result.
+    async fn generate_image_get_result() -> Vec<u8>;
+
 }
 
 // This is the type that implements the generated World trait. It is the business logic
@@ -34,6 +41,8 @@ pub struct OlianaServer {
 
     pub text_input_nonce: std::sync::Arc<std::sync::RwLock<usize>>,
     pub generate_text_next_byte_i: std::sync::Arc<std::sync::RwLock<usize>>, // Keeps track of how far into the output .txt file we have read for streaming purposes
+
+    pub image_input_nonce: std::sync::Arc<std::sync::RwLock<usize>>,
 }
 
 impl OlianaServer {
@@ -50,8 +59,9 @@ impl OlianaServer {
             ai_workdir_text: ai_workdir_text.to_string(),
 
             text_input_nonce: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
-
             generate_text_next_byte_i: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
+
+            image_input_nonce: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
 
         }
     }
@@ -99,6 +109,39 @@ impl OlianaServer {
         }
         ret_val
     }
+
+
+    pub fn read_image_input_nonce(&self) -> usize {
+        let mut ret_val: usize = 0;
+        match self.image_input_nonce.read() {
+            Ok(image_input_nonce_rg) => {
+                ret_val = *image_input_nonce_rg;
+            }
+            Err(e) => {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+            }
+        }
+        ret_val
+    }
+
+    pub async fn increment_to_next_free_image_input_nonce(&mut self) -> Result<usize, Box<dyn std::error::Error>> {
+        while tokio::fs::try_exists( self.get_current_image_input_json_path() ).await? {
+            if let Ok(ref mut image_input_nonce_wg) = self.image_input_nonce.write() {
+                **image_input_nonce_wg += 1;
+            }
+        }
+        Ok(self.read_image_input_nonce())
+    }
+    pub fn get_current_image_input_json_path(&self) -> std::path::PathBuf {
+        std::path::Path::new(&self.ai_workdir_images).join(format!("{}.json", self.read_image_input_nonce()))
+    }
+    pub fn get_current_image_output_png_path(&self) -> std::path::PathBuf {
+        std::path::Path::new(&self.ai_workdir_images).join(format!("{}.png", self.read_image_input_nonce()))
+    }
+    pub fn get_current_image_output_txt_path(&self) -> std::path::PathBuf {
+        std::path::Path::new(&self.ai_workdir_images).join(format!("{}.txt", self.read_image_input_nonce()))
+    }
+
 
 }
 
@@ -184,6 +227,90 @@ impl Oliana for OlianaServer {
         return None;
     }
 
+    async fn generate_image_begin(mut self, _: tarpc::context::Context, prompt: String, negative_prompt: String, guidance_scale: f32, num_inference_steps: u32) -> std::string::String {
+        if let Err(e) = self.increment_to_next_free_image_input_nonce().await {
+            eprintln!("[ increment_to_next_free_image_input_nonce ] {:?}", e);
+            return format!("[ increment_to_next_free_image_input_nonce ] {:?}", e);
+        }
+
+        let input_data = serde_json::json!({
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "guidance_scale": guidance_scale,
+            "num_inference_steps": num_inference_steps,
+        });
+        let input_data_s = input_data.to_string();
+
+        let current_text_input_json = self.get_current_image_input_json_path();
+
+        let response_txt_file = self.get_current_image_output_txt_path();
+        if response_txt_file.exists() {
+            if let Err(e) = tokio::fs::remove_file(response_txt_file).await {
+                eprintln!("[ tokio::fs::remove_file ] {:?}", e);
+                return format!("[ tokio::fs::remove_file ] {:?}", e);
+            }
+        }
+
+        let response_png_file = self.get_current_image_output_png_path();
+        if response_png_file.exists() {
+            if let Err(e) = tokio::fs::remove_file(response_png_file).await {
+                eprintln!("[ tokio::fs::remove_file ] {:?}", e);
+                return format!("[ tokio::fs::remove_file ] {:?}", e);
+            }
+        }
+
+        if let Err(e) = tokio::fs::write(current_text_input_json, input_data_s.as_bytes()).await {
+            eprintln!("[ tokio::fs::write ] {:?}", e);
+            return format!("[ tokio::fs::write ] {:?}", e);
+        }
+
+        String::new()
+    }
+
+    async fn generate_image_get_result(self, _: tarpc::context::Context) -> Vec<u8> {
+        let mut result_bytes: Vec<u8> = Vec::with_capacity(1024 * 1024);
+
+        let response_txt_file = self.get_current_image_output_txt_path();
+        let response_png_file = self.get_current_image_output_png_path();
+
+        let mut remaining_polls_before_give_up: usize = 24 * 10; // 24 seconds worth at 10 polls/sec
+        while !response_txt_file.exists() && !response_png_file.exists() && remaining_polls_before_give_up > 1 {
+            tokio::time::sleep( tokio::time::Duration::from_millis(100) ).await;
+            remaining_polls_before_give_up -= 1;
+        }
+
+        if response_png_file.exists() {
+            // Just because it _exists_ doesn't mean we're done writing to it. Give the OS a tick to flush writes and continue when 100ms elapses w/ identical length values for the file
+            remaining_polls_before_give_up = 4 * 10; // 4 seconds at 10 polls/sec
+            let mut last_file_len: u64 = 0;
+            while remaining_polls_before_give_up > 1 {
+                tokio::time::sleep( tokio::time::Duration::from_millis(100) ).await;
+                let mut this_file_len: u64 = 1;
+                if let Ok(mut metadata) = tokio::fs::metadata(&response_png_file).await {
+                    this_file_len = metadata.len();
+                }
+                if this_file_len == last_file_len {
+                    break; // Success!
+                }
+                last_file_len = this_file_len;
+                remaining_polls_before_give_up -= 1;
+            }
+            tokio::time::sleep( tokio::time::Duration::from_millis(100) ).await;
+
+            if let Ok(mut fd) = tokio::fs::File::open(&response_png_file).await {
+                if let Err(e) = fd.read_to_end(&mut result_bytes).await {
+                    eprintln!("{}:{} {:?}", file!(), line!(), e);
+                }
+            }
+        }
+
+        if response_txt_file.exists() {
+            let response_err_msg = std::fs::read_to_string(&response_txt_file).unwrap_or_else(|_| String::new());
+            eprintln!("Got error from Oliana-Images: {:?}", response_err_msg);
+        }
+
+        return result_bytes;
+    }
 }
 
 

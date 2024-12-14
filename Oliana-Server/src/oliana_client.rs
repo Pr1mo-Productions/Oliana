@@ -42,7 +42,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   if args.command == Command::Text {
     let text_begin_diagnostic = client.generate_text_begin(
       tarpc::context::current(),
-      "You are a helpful office assistant who eagerly answers questions with expert advice.".to_string(),
+      args.system_prompt.clone(),
       args.prompt.clone()
     ).await?;
     eprintln!("From Server: {:?}", &text_begin_diagnostic);
@@ -60,9 +60,21 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     }
   }
   else if args.command == Command::Image {
-    //let reply = client.hello(tarpc::context::current(), format!("1")).await?;
+    let text_begin_diagnostic = client.generate_image_begin(
+      tarpc::context::current(),
+      args.prompt.clone(),
+      args.negative_prompt.clone(),
+      args.guidance_scale,
+      args.num_inference_steps
+    ).await?;
+    eprintln!("From Server: {:?}", &text_begin_diagnostic);
 
-    std::unimplemented!()
+    let png_bytes = client.generate_image_get_result(tarpc::context::current()).await?;
+
+    if args.output.len() > 0 {
+      eprintln!("Writing {} bytes to {}", png_bytes.len(), &args.output);
+      tokio::fs::write(&args.output, &png_bytes).await?;
+    }
 
   }
 
@@ -90,6 +102,22 @@ pub struct Args {
     /// Pass a prompt for the Command's Image or Text AI agent (required for Image and Text commands)
     #[arg(short, long, default_value="")]
     pub prompt: String,
+
+    /// With command 'text' only - pass in the system prompt to use
+    #[arg(short, long, default_value="You are a helpful office assistant who eagerly answers questions with expert advice.")]
+    pub system_prompt: String,
+
+    /// With command 'image' only - pass in a negative prompt
+    #[arg(short, long, default_value="")]
+    pub negative_prompt: String,
+
+    /// With command 'image' only - Set the guidance scale. Lower values allow images closer to training data (ie more natural), higher values force images to be closer to the prompt (but may become unnatural)
+    #[arg(short, long, default_value="3.5")]
+    pub guidance_scale: f32,
+
+    /// With command 'image' only - Set the number of inference steps
+    #[arg(short, long, default_value="12")]
+    pub num_inference_steps: u32,
 
     /// File path to write Image or Text AI response back to (defaults to out.png when using Image command, writes to stdout if unspecified in Text command)
     #[arg(short, long, default_value="")]

@@ -52,6 +52,17 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(ai_workdir_text.clone()).map_err(oliana_lib::eloc!())?;
     }
 
+    // Delete all files in ai_workdir_images and ai_workdir_text; this prevents concurrency build-up over time
+    for working_dir in [&ai_workdir_images, &ai_workdir_text] {
+        let mut dir_iterator = tokio::fs::read_dir(&working_dir).await?;
+        while let Some(entry) = dir_iterator.next_entry().await? {
+            let entry_path = entry.path();
+            if entry_path.is_file() {
+                tokio::fs::remove_file(&entry_path).await?;
+            }
+        }
+    }
+
     // We set & pass down this value which backends may read to avoid over-allocating eachother's slice of the GPU pie.
     let mut per_proc_mem_already_defined = false;
     if let Ok(per_proc_mem_val) = std::env::var("PER_PROC_MEM_FRACT") {
