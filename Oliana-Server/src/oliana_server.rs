@@ -53,9 +53,19 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // We set & pass down this value which backends may read to avoid over-allocating eachother's slice of the GPU pie.
-    std::env::set_var(
-      "PER_PROC_MEM_FRACT", "0.40"
-    );
+    let mut per_proc_mem_already_defined = false;
+    if let Ok(per_proc_mem_val) = std::env::var("PER_PROC_MEM_FRACT") {
+        if per_proc_mem_val.len() > 0 {
+            per_proc_mem_already_defined = true;
+            eprintln!("Not changing already-existing PER_PROC_MEM_FRACT value of {}", &per_proc_mem_val);
+        }
+    }
+    if !per_proc_mem_already_defined {
+        eprintln!("Setting PER_PROC_MEM_FRACT=0.40 for child processes (otherwise they will over-allocate and eat >100% of GPU memory and one will lose the race and go home cryting for more VRAM)");
+        std::env::set_var(
+          "PER_PROC_MEM_FRACT", "0.40"
+        );
+    }
 
     procs.register_tracked_proc("oliana_images", &[
         "--workdir", &ai_workdir_images.to_string_lossy()
