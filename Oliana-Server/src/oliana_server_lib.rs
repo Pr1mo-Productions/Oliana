@@ -34,8 +34,7 @@ pub struct OlianaServer {
 
     pub text_input_nonce: std::sync::Arc<std::sync::RwLock<usize>>,
     pub token_generation_complete: std::sync::Arc<std::sync::RwLock<bool>>,
-    pub generated_text_tokens: std::sync::Arc<std::sync::RwLock<Vec<String>>>,
-    pub generate_text_next_token_i: std::sync::Arc<std::sync::RwLock<usize>>,
+    pub generate_text_next_byte_i: std::sync::Arc<std::sync::RwLock<usize>>, // Keeps track of how far into the output .txt file we have read for streaming purposes
 }
 
 impl OlianaServer {
@@ -54,8 +53,7 @@ impl OlianaServer {
             text_input_nonce: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
 
             token_generation_complete: std::sync::Arc::new(std::sync::RwLock::new( false )),
-            generated_text_tokens: std::sync::Arc::new(std::sync::RwLock::new( Vec::with_capacity(4096) )),
-            generate_text_next_token_i: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
+            generate_text_next_byte_i: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
 
         }
     }
@@ -87,12 +85,15 @@ impl OlianaServer {
     pub fn get_current_text_output_txt_path(&self) -> std::path::PathBuf {
         std::path::Path::new(&self.ai_workdir_text).join(format!("{}.txt", self.read_text_input_nonce()))
     }
+    pub fn get_current_text_output_done_path(&self) -> std::path::PathBuf {
+        std::path::Path::new(&self.ai_workdir_text).join(format!("{}.done", self.read_text_input_nonce()))
+    }
 
-    pub fn read_generate_text_next_token_i(&self) -> usize {
+    pub fn read_generate_text_next_byte_i(&self) -> usize {
         let mut ret_val: usize = 0;
-        match self.generate_text_next_token_i.read() {
-            Ok(generate_text_next_token_i_rg) => {
-                ret_val = *generate_text_next_token_i_rg;
+        match self.generate_text_next_byte_i.read() {
+            Ok(generate_text_next_byte_i_rg) => {
+                ret_val = *generate_text_next_byte_i_rg;
             }
             Err(e) => {
                 eprintln!("{}:{} {:?}", file!(), line!(), e);
@@ -111,8 +112,8 @@ impl Oliana for OlianaServer {
             **token_generation_complete_wg = false;
         }
 
-        if let Ok(ref mut generate_text_next_token_i_wg) = self.generate_text_next_token_i.write() {
-            **generate_text_next_token_i_wg = 0;
+        if let Ok(ref mut generate_text_next_byte_i_wg) = self.generate_text_next_byte_i.write() {
+            **generate_text_next_byte_i_wg = 0;
         }
 
         if let Err(e) = self.increment_to_next_free_text_input_nonce().await {
@@ -149,40 +150,44 @@ impl Oliana for OlianaServer {
         // so we can poll & return a streamed response.
         let response_txt_file = self.get_current_text_output_txt_path();
         while ! response_txt_file.exists() {
-            tokio::time::sleep( tokio::time::Duration::from_millis(200) ).await;
+            tokio::time::sleep( tokio::time::Duration::from_millis(100) ).await;
         }
 
-        eprintln!("oliana_server is Reading from response_txt_file = {:?}; self.generate_text_next_token_i = {}", response_txt_file.to_string_lossy(), self.read_generate_text_next_token_i() );
+        let response_done_file = self.get_current_text_output_done_path();
 
-        if self.read_generate_text_next_token_i() == 0 {
-            if let Ok(ref mut generate_text_next_token_i_wg) = self.generate_text_next_token_i.write() {
-                **generate_text_next_token_i_wg = 1; // mark done, so we return None on next call. Janky asf, pls remove soon!
-            }
+        // Wait until the file's size is > self.read_generate_text_next_byte_i()
+        let mut remaining_polls_before_give_up: usize = 12 * 10; // 12 seconds worth at 10 polls/sec
+        loop {
+            let next_byte_i = self.read_generate_text_next_byte_i();
+            if let Ok(file_bytes) = tokio::fs::read(&response_txt_file).await {
+                if file_bytes.len() < next_byte_i {
+                    return None; // Somehow the file was truncated! .len() should always grow; it is allowed to be == next_byte_i.
+                }
+                if let Ok(the_string) = std::str::from_utf8(&file_bytes[next_byte_i..]) {
 
-            if let Ok(file_bytes) = tokio::fs::read(response_txt_file).await {
-                if let Ok(the_string) = std::str::from_utf8(&file_bytes) {
-                    return Some(the_string.to_string());
+                    // Update the index we know we have read to to file_bytes.len()
+                    match self.generate_text_next_byte_i.write() {
+                        Ok(mut generate_text_next_byte_i_wg) => {
+                            *generate_text_next_byte_i_wg = file_bytes.len();
+                        }
+                        Err(e) => {
+                            eprintln!("{}:{} {:?}", file!(), line!(), e);
+                        }
+                    }
+
+                    // It's possible to read 0 new bytes, in which case we do NOT want to return empty string; instead we fall down to the `response_done_file.exists() || remaining_polls_before_give_up < 1` check below.
+                    if the_string.len() > 0 {
+                        return Some(the_string.to_string());
+                    }
                 }
             }
-
-            None
+            if response_done_file.exists() || remaining_polls_before_give_up < 1 { // What we just read must be the remaining bytes, because .done is created AFTER a write to .txt
+                break;
+            }
+            tokio::time::sleep( tokio::time::Duration::from_millis(100) ).await;
+            remaining_polls_before_give_up -= 1;
         }
-        else {
-            None
-        }
-
-        /*
-        // We poll until either self.token_generation_complete or the vec has enough tokens to return the next one
-        while !self.token_generation_complete && self.generate_text_next_token_i < self.generated_text_tokens.len()-1 {
-            tokio::time::sleep( tokio::time::Duration::from_millis(200) ).await;
-        }
-
-        let token = self.generated_text_tokens.get(self.generate_text_next_token_i);
-        if token.is_some() {
-            self.generate_text_next_token_i += 1;
-        }
-        return token.cloned();
-        */
+        return None;
     }
 
 }

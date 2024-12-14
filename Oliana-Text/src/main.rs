@@ -21,6 +21,7 @@ use mistralrs::{
     MemoryGpuConfig,
     IsqType, PagedAttentionMetaBuilder, TextMessageRole, TextMessages, TextModelBuilder,
 };
+use tokio::io::AsyncWriteExt;
 
 async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
@@ -97,6 +98,17 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                             out_txt_file.set_extension("txt");
                             let out_txt_file = out_txt_file;
 
+                            let mut out_done_file = entry_path.clone();
+                            out_done_file.set_extension("done");
+                            let out_done_file = out_done_file;
+                            if out_done_file.exists() {
+                                tokio::fs::remove_file(&out_done_file).await?;
+                            }
+
+                            // This has a Drop trait which creates the passed-in file when it is no longer in scope; combined with the error? returns below,
+                            // this guarantees when the computation is done, out_done_file exists.
+                            let out_done_writer = CreateFileOnDropped::new(out_done_file);
+
                             let input_json_text = tokio::fs::read_to_string(&entry_path).await?;
                             let input_data: serde_json::Value = serde_json::from_str(&input_json_text)?;
                             eprintln!("Read input_data = {input_json_text}");
@@ -123,26 +135,70 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                                 &user_prompt[..],
                             );
 
-                          match model.send_chat_request(messages).await.map_err(oliana_lib::eloc!()) {
-                            Ok(response) => {
-                                if let Some(ref reply_txt) = response.choices[0].message.content {
+                            // First zero the file we write chunks to
+                            tokio::fs::write(out_txt_file.as_path(), "".as_bytes()).await?;
+                            // Then open in append mode
+                            let mut out_txt_fd = tokio::fs::File::options()
+                                                    .append(true)
+                                                    .open(out_txt_file.as_path()).await?;
 
-                                    println!("Saving {}", out_txt_file.display());
+                            match model.stream_chat_request(messages).await.map_err(oliana_lib::eloc!()) {
+                                Ok(mut response_stream) => {
+                                    while let Some(ref response) = response_stream.next().await {
+                                        match response {
+                                            mistralrs::Response::InternalError(err) => {
+                                                out_txt_fd.write_all(format!("\n{:?}\n", err).as_bytes()).await?;
+                                                break;
+                                            },
+                                            mistralrs::Response::ValidationError(err) => {
+                                                out_txt_fd.write_all(format!("\n{:#?}\n", err).as_bytes()).await?;
+                                                break;
+                                            },
+                                            mistralrs::Response::ModelError(s, completion_response) => {
+                                                out_txt_fd.write_all(format!("\n{:#?},{:#?}\n", s, completion_response).as_bytes()).await?;
+                                                break;
+                                            },
+                                            mistralrs::Response::Done(_completion_response) => {
+                                                //out_txt_fd.write_all(format!("\n{:#?}\n", completion_response).as_bytes()).await?;
+                                                break;
+                                            },
+                                            mistralrs::Response::Chunk(chunk) => {
+                                                //out_txt_fd.write_all(format!("\n{:#?}\n", chunk).as_bytes()).await?;
+                                                for choice in chunk.choices.iter() {
+                                                    out_txt_fd.write_all(format!("{}", choice.delta.content ).as_bytes()).await?;
+                                                }
+                                            },
+                                            mistralrs::Response::CompletionModelError(s, completion_response) => {
+                                                out_txt_fd.write_all(format!("\n{:#?},{:#?}\n", s, completion_response).as_bytes()).await?;
+                                            },
+                                            mistralrs::Response::CompletionDone(_completion_response) => {
+                                                //out_txt_fd.write_all(format!("\n{:#?}\n", completion_response).as_bytes()).await?;
+                                                break;
+                                            },
+                                            mistralrs::Response::CompletionChunk(chunk) => {
+                                                out_txt_fd.write_all(format!("\n{:#?}\n", chunk).as_bytes()).await?;
+                                            },
+                                            mistralrs::Response::ImageGeneration(image_gen_response) => {
+                                                out_txt_fd.write_all(format!("\n{:#?}\n", image_gen_response).as_bytes()).await?;
+                                            },
+                                            _unused_raw => { /* NOP */ }
+                                        }
+                                        out_txt_fd.flush().await?;
 
-                                    tokio::fs::write(out_txt_file, reply_txt.as_bytes()).await?;
+                                    }
 
                                 }
-                                else {
-                                    eprintln!("WARNING: response.choices[0].message.content was None!");
+                                Err(e) => {
+                                    allowed_errors_remaining -= 1;
+                                    eprintln!("{:?}", e);
+                                    out_txt_fd.write_all(format!("\n{:#?}\n", e).as_bytes()).await?;
                                 }
                             }
-                            Err(e) => {
-                                allowed_errors_remaining -= 1;
-                                eprintln!("{:?}", e);
-                            }
-                          }
+
+                            std::mem::drop(out_done_writer);
 
                         }
+
                     }
                 }
                 Err(e) => {
@@ -160,4 +216,25 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   }
 
   Ok(())
+}
+
+#[clippy::has_significant_drop]
+pub struct CreateFileOnDropped {
+    pub file_path: std::path::PathBuf,
+}
+
+impl CreateFileOnDropped {
+    pub fn new(file_path: std::path::PathBuf) -> Self {
+        Self {
+            file_path: file_path
+        }
+    }
+}
+
+impl Drop for CreateFileOnDropped {
+    fn drop(&mut self) {
+        if let Err(e) = std::fs::write(self.file_path.as_path(), " ".as_bytes()) {
+            eprintln!("{:?} when creating file {}", e, self.file_path.display());
+        }
+    }
 }

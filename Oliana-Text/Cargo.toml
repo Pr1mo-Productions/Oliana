@@ -8,7 +8,9 @@ oliana_lib = { path = "../Oliana-Lib" }
 tokio =        { version = "1.41", features = ["full"] }
 num_cpus =     { version = "1.16" }
 
-mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "v0.3.1", features = ["cuda"] }
+#mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "v0.3.4", features = ["cuda"] }
+# Note: This thing is _ACTIVELY_ developed; at time of writing master is only 2 hours old!
+mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs.git", features = ["cuda","cudnn"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1" }

@@ -49,10 +49,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     let mut generated_text = String::with_capacity(4096);
     while let Some(next_token) = client.generate_text_next_token(tarpc::context::current()).await? {
       eprint!("{}", &next_token);
-      eprint!(" ");
+      //eprint!(" ");
       generated_text.push_str(&next_token);
-      generated_text.push_str(" ");
-      tokio::time::sleep( tokio::time::Duration::from_millis(800) ).await;
+      //generated_text.push_str(" ");
     }
     eprintln!();
     if args.output.len() > 0 {
