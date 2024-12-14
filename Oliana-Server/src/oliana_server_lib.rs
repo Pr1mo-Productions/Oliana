@@ -33,7 +33,6 @@ pub struct OlianaServer {
     pub ai_workdir_text: String,
 
     pub text_input_nonce: std::sync::Arc<std::sync::RwLock<usize>>,
-    pub token_generation_complete: std::sync::Arc<std::sync::RwLock<bool>>,
     pub generate_text_next_byte_i: std::sync::Arc<std::sync::RwLock<usize>>, // Keeps track of how far into the output .txt file we have read for streaming purposes
 }
 
@@ -52,7 +51,6 @@ impl OlianaServer {
 
             text_input_nonce: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
 
-            token_generation_complete: std::sync::Arc::new(std::sync::RwLock::new( false )),
             generate_text_next_byte_i: std::sync::Arc::new(std::sync::RwLock::new( 0 )),
 
         }
@@ -107,10 +105,6 @@ impl OlianaServer {
 // These methods are run in the context of the client connection, on the server.
 impl Oliana for OlianaServer {
     async fn generate_text_begin(mut self, _: context::Context, system_prompt: String, user_prompt: String) -> String {
-
-        if let Ok(ref mut token_generation_complete_wg) = self.token_generation_complete.write() {
-            **token_generation_complete_wg = false;
-        }
 
         if let Ok(ref mut generate_text_next_byte_i_wg) = self.generate_text_next_byte_i.write() {
             **generate_text_next_byte_i_wg = 0;
