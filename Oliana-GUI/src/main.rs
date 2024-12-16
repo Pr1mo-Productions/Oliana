@@ -48,12 +48,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
 pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::error::Error>> {
   App::new()
-    .add_plugins((
-        DefaultPlugins
+    .add_plugins(DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "Oliana".into(),
-                    name: Some("Oliana".into()),
+                    title: "Oliana - The Game".into(),
+                    name: Some("Oliana - The Game".into()),
                     resolution: (500., 300.).into(),
                     present_mode: PresentMode::AutoVsync,
                     window_theme: Some(WindowTheme::Dark),
@@ -77,14 +76,10 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
                     }
                 ),
                 ..default()
-            }),
-//        LogDiagnosticsPlugin::default(),
-//        FrameTimeDiagnosticsPlugin,
-        ScrollViewPlugin,
-    ))
+            }))
     .add_plugins(bevy_defer::AsyncPlugin::default_settings())
     .add_plugins(TextInputPlugin)
-    //.add_plugins(ScrollViewPlugin)
+    .add_plugins(ScrollViewPlugin)
 
     .add_event::<OllamaIsReadyToProcessEvent>()
     .add_event::<PromptToOllamaEvent>()
