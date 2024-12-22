@@ -162,6 +162,7 @@ sudo fwupdmgr update
 
 yay -S usbutils
 
+yay -S tbtools
 
 
 ```
