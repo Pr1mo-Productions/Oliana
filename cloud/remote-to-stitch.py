@@ -40,11 +40,20 @@ if ssh_key_path is None:
 
 print(f'We are using your private key located at {ssh_key_path} to authenticate; if this does not work make sure Jeff has added the public key from that (generally denoted with a .pub suffix) to the stitch server!')
 
+server_name = 'stitch'+'.jmcateer'+'.com'
+if 'SERVER_NAME' in os.environ:
+  server_name = os.environ.get('SERVER_NAME', server_name)
+
+server_port = '92'
+if 'SERVER_PORT' in os.environ:
+  server_port = os.environ.get('SERVER_PORT', server_port)
+
+
 cmd = [
   'ssh',
   '-i', ssh_key_path,
-  '-p', '92',
-  'user@stitch'+'.jmcateer'+'.com' # TODO stitch-specific DNS name
+  '-p', f'{server_port}',
+  f'user@{server_name}'
 ]
 print(f'>>> {" ".join(cmd)}')
 
