@@ -13,8 +13,15 @@ ip link set wlan0 up
 iw dev wlan0 scan
 iw dev wlan0 connect your_essid
 iw dev wlan0 set power_save off
-systemctl start dhcpcd@wlan0.service
+# systemctl start dhcpcd@wlan0.service
+sudo dhcpcd -4 wlan0
 dmesg -n 1
+# Potentially useful
+ip address add ADDRESS/24 broadcast + dev wlan0
+ip route replace default via ADDRESS dev wlan0
+systemctl start systemd-resolved
+resolvectl dns wlan0 1.1.1.1 8.8.8.8
+resolvectl query archlinux.org
 
 # (0) Install Arch on a PC
 fdisk
