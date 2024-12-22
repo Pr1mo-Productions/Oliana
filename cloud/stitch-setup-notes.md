@@ -29,7 +29,8 @@ mkfs.fat -F 32 /dev/nvme0n1p1
 bcachefs format /dev/nvme0n1p2
 mount /dev/nvme0n1p2 /mnt && mkdir -p /mnt/boot && mount /dev/nvme0n1p1 /mnt/boot
 
-pacstrap -K /mnt base linux linux-firmware
+pacman-key --init
+pacstrap -K /mnt base linux linux-firmware git base-devel openssh sudo vim
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
@@ -48,8 +49,56 @@ mkinitcpio -P
 
 bootctl install
 
+# Setup user account
+useradd -m -G wheel user
+passwd user # See 'Infrastructure Secrets' in Drive folder
 
+mkdir -p /opt/automatics/
+vim /opt/automatics/wifi.sh <<EOF
+#!/bin/bash
 
+ip link set wlan0 up
+iw dev wlan0 scan
+iw dev wlan0 connect your_essid
+iw dev wlan0 set power_save off
+
+sleep 12
+
+if ! ip a | grep -qi 192.168.XX ; then
+  # DHCP doesn't work, let's just throw a static address and route on there
+  ip address add ADDRESS/24 broadcast + dev wlan0
+  ip route replace default via ADDRESS dev wlan0
+fi
+
+EOF
+
+vim /etc/systemd/system/automatics-wifi.service <<EOF
+[Unit]
+Description=Bootup WiFi watchdog
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /opt/automatics/wifi.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable automatics-wifi.service
+
+vim /etc/systemd/system/automatics-wifi.timer <<EOF
+[Unit]
+Description=Bootup WiFi watchdog timer
+
+[Timer]
+OnUnitActiveSec=90s
+OnBootSec=14s
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl enable automatics-wifi.timer
 
 ```
 
