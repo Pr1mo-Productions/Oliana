@@ -125,4 +125,43 @@ systemctl enable sshd
 
 ```
 
+## First Boot + Setup
 
+```bash
+
+# Install yay just because AUR is awesome
+sudo pacman -S --needed git base-devel
+cd /opt
+sudo mkdir /opt/yay
+sudo chown user:user /opt/yay
+git clone https://aur.archlinux.org/yay.git /opt/yay
+cd /opt/yay
+makepkg -si
+
+# Install USB4 + Nvidia drivers for thunderbolt access
+yay -S wget nvidia-open nvidia-utils opencl-nvidia cuda libtorch-cxx11abi-cuda
+
+vim /etc/udev/rules.d/99-removable.rules <<EOF
+ACTION=="add", SUBSYSTEM=="thunderbolt", ATTR{authorized}=="0", ATTR{authorized}="1"
+EOF
+
+yay -S bolt
+boltctl list
+boltctl authorize DEVICE
+
+
+lspci -k -d ::03xx
+# Should dump Nvidia card attached over thunderbolt details
+
+# Firmware stuff
+yay -S fwupd
+sudo fwupdmgr get-devices
+sudo fwupdmgr refresh
+sudo fwupdmgr get-updates
+sudo fwupdmgr update
+
+yay -S usbutils
+
+
+
+```
