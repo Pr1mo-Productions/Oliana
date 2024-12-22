@@ -1,7 +1,7 @@
 
 # Oliana
 
-This repo contains the game runtime for Oliana! Non-techie details on the [Landing Page](https://BM-Enterprises.github.io/Oliana/) (content set in `docs/index.html`),
+This repo contains the game runtime for Oliana! Non-techie details on the [Landing Page](https://Pr1mo-Productions.github.io/Oliana/) (content set in `docs/index.html`),
 techie details below.
 
 
@@ -96,7 +96,7 @@ cargo run --release --bin oliana_client
 
 **Stretch Goal:** Also add capabilities to download the other tools off the github releases page or similar distribution channel; TODO think about packaging ideas & how updates will work
 
-[Tracking Issue 1](https://github.com/BM-Enterprises/Oliana/issues/1)
+[Tracking Issue 1](https://github.com/Pr1mo-Productions/Oliana/issues/1)
 
 
 # Misc Notes
