@@ -30,7 +30,7 @@ bcachefs format /dev/nvme0n1p2
 mount /dev/nvme0n1p2 /mnt && mkdir -p /mnt/boot && mount /dev/nvme0n1p1 /mnt/boot
 
 pacman-key --init
-pacstrap -K /mnt base linux linux-firmware git base-devel openssh sudo vim
+pacstrap -K /mnt base linux linux-firmware git base-devel openssh sudo vim amd-ucode
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
@@ -46,6 +46,21 @@ vim /etc/locale.conf # LANG=en_US.UTF-8
 vim /etc/hostname # stitch
 
 mkinitcpio -P
+
+bootctl install
+
+vim /boot/loader/entries/stitch.conf <<EOF
+title Stitch
+linux /vmlinuz-linux
+initrd /amd-ucode.img
+initrd /initramfs-linux.img
+options root=PARTUUID=<output of (lsblk -no NAME,PARTUUID /dev/nvme1n1p2)> rootfstype=bcachefs add_efi_memmap mitigations=off pti=off
+EOF
+vim /boot/loader/loader.conf <<EOF
+console-mode max
+timeout 4
+default stitch.conf
+EOF
 
 bootctl install
 
