@@ -72,17 +72,18 @@ mkdir -p /opt/automatics/
 vim /opt/automatics/wifi.sh <<EOF
 #!/bin/bash
 
-ip link set wlan0 up
-iw dev wlan0 scan
-iw dev wlan0 connect your_essid
-iw dev wlan0 set power_save off
+D=wlan0
+
+ip link set $D up
+iwctl station $D connect your_essid
+iw dev $D set power_save off
 
 sleep 12
 
 if ! ip a | grep -qi 192.168.XX ; then
   # DHCP doesn't work, let's just throw a static address and route on there
-  ip address add ADDRESS/24 broadcast + dev wlan0
-  ip route replace default via ADDRESS dev wlan0
+  ip address add ADDRESS/24 broadcast + dev $D
+  ip route replace default via ADDRESS dev $D
 fi
 
 EOF
@@ -114,6 +115,13 @@ WantedBy=timers.target
 EOF
 
 systemctl enable automatics-wifi.timer
+
+pacman -Syu iwd iw amd-ucode
+
+bootctl install
+
+systemctl enable sshd
+
 
 ```
 
