@@ -55,6 +55,10 @@ cmd = [
   '-p', f'{server_port}',
   f'user@{server_name}'
 ]
+
+if shutil.which('waypipe') is not None and not 'NO_WAYPIPE' in os.environ:
+  cmd = [ 'waypipe' ] + cmd
+
 print(f'>>> {" ".join(cmd)}')
 
-subprocess.run(cmd)
+subprocess.run(cmd, shell=False)
