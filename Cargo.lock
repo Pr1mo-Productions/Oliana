@@ -4806,6 +4806,7 @@ dependencies = [
  "clap",
  "num_cpus",
  "oliana_lib",
+ "oliana_server",
  "rand",
  "rand_core",
  "serde",

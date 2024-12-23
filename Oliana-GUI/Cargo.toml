@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 oliana_lib = { path = "../Oliana-Lib" }
+oliana_server = { path = "../Oliana-Server" }
 
 tokio =        { version = "1.41", features = ["full"] }
 num_cpus =     { version = "1.16" }
