@@ -165,4 +165,131 @@ yay -S usbutils
 yay -S tbtools
 
 
+## It was at this point Jeffrey discovered the 28-inch cable required more power draw than the little Beelink server could provide,
+## and using an 8-inch thunderbolt cable worked just fine! :D
+
+
+# Setup DNS tools
+vim /opt/automatics/dns.py <<EOF
+#!/usr/bin/env python3
+
+import os
+import sys
+import random
+import urllib
+import urllib.request
+import traceback
+import json
+import socket
+
+def get_pub_ip():
+  pub_ip = ''
+  urls = random.sample(
+    ['https://ifconfig.me', 'https://ident.me', 'https://ipinfo.io'],
+    k=3
+  )
+  for url in urls:
+    try:
+      pub_ip = urllib.request.urlopen(url, timeout=2).read().decode('utf8')
+      if pub_ip.startswith('{'):
+        pub_ip_obj = json.loads(pub_ip)
+        pub_ip = pub_ip_obj.get('ip', pub_ip)
+      break
+    except:
+      print(f'url={url} failed:')
+      traceback.print_exc()
+  return pub_ip.strip()
+
+def get_loc_ip():
+  local_ip = None
+  try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('1.1.1.1', 80))
+    local_ip = s.getsockname()[0]
+    s.close()
+  except:
+    traceback.print_exc()
+  return local_ip
+
+
+pub_ip = get_pub_ip()
+
+print(f'get_pub_ip() = {pub_ip}')
+
+last_pub_ip = ''
+if os.path.exists('/tmp/.last_pub_ip'):
+  with open('/tmp/.last_pub_ip', 'r') as fd:
+    last_pub_ip = fd.read().strip()
+
+if last_pub_ip == pub_ip:
+  print('No change in IP!')
+  print('rm /tmp/.last_pub_ip # to reset')
+  sys.exit(0)
+
+
+
+jmcateer_com_dns_pass = 'TODO'
+jmcateer_com_domain = 'jmcateer.com'
+jmcateer_com_host = 'stitch'
+jmcateer_com_ip = pub_ip
+print()
+url = f'https://dynamicdns.park-your-domain.com/update?host={jmcateer_com_host}&domain={jmcateer_com_domain}&password={jmcateer_com_dns_pass}&ip={jmcateer_com_ip}'
+out = urllib.request.urlopen(url, timeout=2).read().decode('utf8')
+print(out)
+print()
+
+
+
+with open('/tmp/.last_pub_ip', 'w') as fd:
+  fd.write(pub_ip)
+EOF
+
+
+vim /etc/systemd/system/automatics-dns.service <<EOF
+[Unit]
+Description=Dynamic DNS watchdog
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python /opt/automatics/dns.py
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable automatics-dns.service
+
+vim /etc/systemd/system/automatics-dns.timer <<EOF
+[Unit]
+Description=Dynamic DNS watchdog timer
+
+[Timer]
+OnUnitActiveSec=180s
+OnBootSec=24s
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl enable automatics-dns.timer
+
+# now `stitch` will update its DNS record every 3 minutes
+
 ```
+
+# Building & Running Oliana
+
+```bash
+git clone https://github.com/Pr1mo-Productions/Oliana.git /home/user/Oliana
+cd /home/user/Oliana/
+
+yay -S cudnn # we were missing this dependency
+
+cargo build --release
+
+
+
+
+
+```
+

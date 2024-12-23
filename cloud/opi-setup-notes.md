@@ -1,4 +1,8 @@
 
+# DECOMISSIONED!!! See the replacement server `stitch`
+
+==========================================
+
 # `opi` setup notes
 
 `opi` is a small Rasperry Pi Model B+ that hosts some of our infrastructure!
