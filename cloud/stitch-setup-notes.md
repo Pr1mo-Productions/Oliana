@@ -283,7 +283,7 @@ systemctl enable automatics-dns.timer
 git clone https://github.com/Pr1mo-Productions/Oliana.git /home/user/Oliana
 cd /home/user/Oliana/
 
-yay -S cudnn # we were missing this dependency
+yay -S cudnn python-pip # we were missing this dependency
 
 cargo build --release
 
