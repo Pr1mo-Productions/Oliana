@@ -114,11 +114,17 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
       println!("Oliana-Images is using Python {version} for processing");
 
       if let Err(e) = py.import("pip") {
-        if let Err(e2) = py.import("ensurepip") {
-          println!("Python likely cannot be setup; both pip and ensurepip failed to import!");
-          eprintln!("{:?}", e);
-          eprintln!("{:?}", e2);
-          eprintln!("");
+        match py.import("ensurepip") {
+          Err(e2) => {
+            println!("Python likely cannot be setup; both pip and ensurepip failed to import!");
+            eprintln!("{:?}", e);
+            eprintln!("{:?}", e2);
+            eprintln!("");
+          }
+          Ok(ensurepip) => {
+            let ensurepip_main: Py<PyAny> = ensurepip.getattr("_main")?.into();
+            ensurepip_main.call1(py, ( ) )?;
+          }
         }
       }
 
