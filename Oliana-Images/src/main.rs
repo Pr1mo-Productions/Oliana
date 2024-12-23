@@ -119,7 +119,7 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
       if let Err(e) = py.import("torch") {
         eprintln!("{:?}", e);
         let arg_vals = vec![
-          "install".to_string(), format!("--target={site_packages}"), "torch==2.5.1".to_string(), "torchvision".to_string(), "torchaudio".to_string(),
+          "install".to_string(), format!("--target={site_packages}"), "torch".to_string(), "torchvision".to_string(), "torchaudio".to_string(),
           "--index-url".to_string(), "https://download.pytorch.org/whl/cu124".to_string(),
         ];
         let args = (arg_vals, );
