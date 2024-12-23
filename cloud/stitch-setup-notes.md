@@ -285,6 +285,9 @@ cd /home/user/Oliana/
 
 yay -S cudnn python-pip # we were missing this dependency
 
+yay -S python312 # torch isn't stable enough for 3.13, so we install this
+python -m ensurepip
+
 cargo build --release
 
 
