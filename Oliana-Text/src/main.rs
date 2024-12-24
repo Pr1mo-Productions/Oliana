@@ -54,7 +54,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     "WORK_DIR", env_var_work_dir.clone()
   );
 
-  let hf_home = oliana_lib::files::get_cache_file("Oliana-Text-hf_home").await.map_err(oliana_lib::eloc!())?;
+  let hf_home = oliana_lib::files::get_cache_file("Oliana-Text-hf_home").map_err(oliana_lib::eloc!())?;
   let hf_home = hf_home.to_string_lossy();
   tokio::fs::create_dir_all(&hf_home[..]).await?;
 

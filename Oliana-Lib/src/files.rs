@@ -85,18 +85,58 @@ impl downloader::progress::Reporter for DownloadProgressReporter {
 
 
 
-pub async fn get_cache_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+pub fn get_cache_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
   let mut user_cache_path = dirs::cache_dir().ok_or_else(|| return "No Cache Directory on this operating system!" ).map_err(crate::err::eloc!())?;
   user_cache_path.push(env!("CARGO_PKG_NAME"));
-  tokio::fs::create_dir_all(&user_cache_path).await?;
+  std::fs::create_dir_all(&user_cache_path)?;
   Ok(user_cache_path)
 }
 
-pub async fn get_cache_file(file_name: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    let mut pb = get_cache_dir().await?;
+pub fn get_cache_file(file_name: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let mut pb = get_cache_dir()?;
     pb.push(file_name);
     Ok(pb)
 }
+
+// This is designed as a way for the server + GUI processes to communicate; the server will update numbers in here when
+// processes die, and if they grow too fast the GUI can assume no CUDA is available.
+pub fn get_cache_file_server_proc_restart_json() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let mut pb = get_cache_dir()?;
+    pb.push("proc_restart_counts.json");
+    Ok(pb)
+}
+pub fn set_cache_file_server_proc_restart_data(data: &std::collections::HashMap::<String, u32>) -> Result<(), Box<dyn std::error::Error>> {
+    let json_txt = serde_json::to_string(data)?;
+    let json_path = get_cache_file_server_proc_restart_json()?;
+    std::fs::write(&json_path, &json_txt.as_bytes())?;
+    Ok(())
+}
+pub fn get_cache_file_server_proc_restart_data() -> Result<std::collections::HashMap::<String, u32>, Box<dyn std::error::Error>> {
+    let json_path = get_cache_file_server_proc_restart_json()?;
+    let json_txt = std::fs::read_to_string(&json_path)?;
+    let hm = serde_json::from_str(&json_txt)?;
+    Ok(hm)
+}
+
+// This is a place for the entire stdout of a process to be copied from the last run; if a subprocess faults often, it will likely contain error text pointing to fixes/identifying the problem.
+pub fn get_cache_file_server_proc_outputs_json() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let mut pb = get_cache_dir()?;
+    pb.push("proc_outputs.json");
+    Ok(pb)
+}
+pub fn set_cache_file_server_proc_outputs_data(data: &std::collections::HashMap::<String, String>) -> Result<(), Box<dyn std::error::Error>> {
+    let json_txt = serde_json::to_string(data)?;
+    let json_path = get_cache_file_server_proc_outputs_json()?;
+    std::fs::write(&json_path, &json_txt.as_bytes())?;
+    Ok(())
+}
+pub fn get_cache_file_server_proc_outputs_data() -> Result<std::collections::HashMap::<String, String>, Box<dyn std::error::Error>> {
+    let json_path = get_cache_file_server_proc_outputs_json()?;
+    let json_txt = std::fs::read_to_string(&json_path)?;
+    let hm = serde_json::from_str(&json_txt)?;
+    Ok(hm)
+}
+
 
 #[cfg(target_os="windows")]
 pub fn append_os_extention_to_bin(bin_name: &str) -> String {

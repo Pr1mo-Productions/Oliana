@@ -54,7 +54,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     "WORK_DIR", env_var_work_dir.clone()
   );
 
-  let site_packages = oliana_lib::files::get_cache_file("Oliana-Images-site_packages").await.map_err(oliana_lib::eloc!())?;
+  let site_packages = oliana_lib::files::get_cache_file("Oliana-Images-site_packages").map_err(oliana_lib::eloc!())?;
   let site_packages = site_packages.to_string_lossy();
   tokio::fs::create_dir_all(&site_packages[..]).await?;
 
@@ -91,7 +91,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     "PATH", os_path
   );
 
-  let hf_home = oliana_lib::files::get_cache_file("Oliana-Images-hf_home").await.map_err(oliana_lib::eloc!())?;
+  let hf_home = oliana_lib::files::get_cache_file("Oliana-Images-hf_home").map_err(oliana_lib::eloc!())?;
   let hf_home = hf_home.to_string_lossy();
   tokio::fs::create_dir_all(&hf_home[..]).await?;
 

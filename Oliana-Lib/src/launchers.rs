@@ -55,11 +55,15 @@ impl TrackedProcs {
     Ok(())
   }
 
+  // This is called periodically & is responsible for calling .update_proc_output_txt_from_files() on running processes; it has the mutable access to the data to do that.
   pub fn ensure_named_proc_running(&mut self, process_bin_name: String, process_args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut existing_proc_i: Option<usize> = None;
     for i in 0..self.procs.len() {
       if self.procs[i].bin_name == process_bin_name {
         existing_proc_i = Some(i);
+        if let Err(e) = self.procs[i].update_proc_output_txt_from_files() {
+          eprintln!("{}:{} {}", file!(), line!(), e);
+        }
         // Found the process, is it running?
       }
     }
@@ -70,11 +74,17 @@ impl TrackedProcs {
     }
     else {
       // Must create a new tracked process & spawn it
-      let otp = OneTrackedProc {
+      let mut otp = OneTrackedProc {
         proc_track_dir: self.proc_track_dir.clone(),
         bin_name: process_bin_name.to_string(),
         filesystem_bin_path: crate::files::find_newest_mtime_bin_under_folder(&self.expected_bin_directory, &process_bin_name)?,
         filesystem_pid_filepath: self.proc_track_dir.join(format!("{}-pid.txt", process_bin_name)),
+        filesystem_stdout_filepath: self.proc_track_dir.join(format!("{}-stdout.txt", process_bin_name)),
+        filesystem_stdout_read_bytes: 0,
+        filesystem_stderr_filepath: self.proc_track_dir.join(format!("{}-stderr.txt", process_bin_name)),
+        filesystem_stderr_read_bytes: 0,
+        proc_restart_count: 0,
+        proc_output_txt: String::new(),
       };
       otp.spawn_proc(&process_args, &mut self.spawned_children)?;
       self.procs.push(otp);
@@ -82,6 +92,23 @@ impl TrackedProcs {
 
     Ok(())
   }
+
+  pub fn get_proc_restart_counts(&self) -> std::collections::HashMap::<String, u32> {
+    let mut hm = std::collections::HashMap::new();
+    for i in 0..self.procs.len() {
+      hm.insert(self.procs[i].bin_name.clone(), self.procs[i].proc_restart_count);
+    }
+    hm
+  }
+
+  pub fn get_proc_outputs(&self) -> std::collections::HashMap::<String, String> {
+    let mut hm = std::collections::HashMap::new();
+    for i in 0..self.procs.len() {
+      hm.insert(self.procs[i].bin_name.clone(), self.procs[i].proc_output_txt.clone());
+    }
+    hm
+  }
+
 }
 
 // This structure exists to store potentially-expensive-to-lookup items once (eg filesystem_bin_path looked up from bin_name)
@@ -90,6 +117,12 @@ pub struct OneTrackedProc {
   pub bin_name: String,
   pub filesystem_bin_path: std::path::PathBuf,
   pub filesystem_pid_filepath: std::path::PathBuf,
+  pub filesystem_stdout_filepath: std::path::PathBuf,
+  pub filesystem_stdout_read_bytes: usize,
+  pub filesystem_stderr_filepath: std::path::PathBuf,
+  pub filesystem_stderr_read_bytes: usize,
+  pub proc_restart_count: u32,
+  pub proc_output_txt: String,
 }
 
 impl OneTrackedProc {
@@ -155,13 +188,53 @@ impl OneTrackedProc {
     Ok(false)
   }
 
-  pub fn spawn_proc(&self, args: &Vec<String>, spawned_child_holder: &mut Vec<std::process::Child>) -> Result<(), Box<dyn std::error::Error>> {
+  pub fn update_proc_output_txt_from_files(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    // We simply append here, spawn_proc.() will place a "================ PID {} ================" banner across process re-starts.
+    // If length is ever > 32kb, we remove the first 8kb chunk from the beginning of the in-memory string
+    if let Ok(current_pid_stdout) = std::fs::read_to_string(&self.filesystem_stdout_filepath) {
+      if current_pid_stdout.len() > self.filesystem_stdout_read_bytes {
+        self.proc_output_txt.push_str(&current_pid_stdout[self.filesystem_stdout_read_bytes..]);
+        self.filesystem_stdout_read_bytes += current_pid_stdout.len() - self.filesystem_stdout_read_bytes;
+      }
+    }
+    if let Ok(current_pid_stderr) = std::fs::read_to_string(&self.filesystem_stderr_filepath) {
+      if current_pid_stderr.len() > self.filesystem_stderr_read_bytes {
+        self.proc_output_txt.push_str(&current_pid_stderr[self.filesystem_stderr_read_bytes..]);
+        self.filesystem_stderr_read_bytes += current_pid_stderr.len() - self.filesystem_stderr_read_bytes;
+      }
+    }
+
+    if self.proc_output_txt.len() > 32 * 1024 {
+      self.proc_output_txt = self.proc_output_txt[8192..].to_string();
+    }
+
+    Ok(())
+  }
+
+  pub fn spawn_proc(&mut self, args: &Vec<String>, spawned_child_holder: &mut Vec<std::process::Child>) -> Result<(), Box<dyn std::error::Error>> {
 
     let debug_process_line = format!("{} {}", self.filesystem_bin_path.display(), args.join(" "));
     eprintln!("Spawning the process: {debug_process_line}");
 
+    if self.filesystem_stdout_filepath.exists() {
+      if let Err(e) = std::fs::remove_file(&self.filesystem_stdout_filepath) {
+        eprintln!("{}:{} {}", file!(), line!(), e);
+      }
+    }
+    if self.filesystem_stderr_filepath.exists() {
+      if let Err(e) = std::fs::remove_file(&self.filesystem_stderr_filepath) {
+        eprintln!("{}:{} {}", file!(), line!(), e);
+      }
+    }
+
+    let child_stdout = std::fs::File::create(&self.filesystem_stdout_filepath)?; // We will have to remember to regularly read from these and eprintln!() + write to self.proc_output_txt
+    let child_stderr = std::fs::File::create(&self.filesystem_stderr_filepath)?;
+
     let child = std::process::Command::new(&self.filesystem_bin_path)
                   .args(args)
+                  .stdin(std::process::Stdio::null())
+                  .stdout(child_stdout)
+                  .stderr(child_stderr)
                   .spawn().map_err(crate::err::eloc!())?;
 
     if let Some(dirname) = self.filesystem_pid_filepath.parent() {
@@ -178,7 +251,13 @@ impl OneTrackedProc {
 
     std::fs::write(&self.filesystem_pid_filepath, pid_file_content).map_err(crate::err::eloc!())?;
 
+    self.proc_restart_count += 1;
+    self.proc_output_txt.push_str(&format!("================ PID {pid} ================\n"));
+    self.filesystem_stdout_read_bytes = 0;
+    self.filesystem_stderr_read_bytes = 0;
+
     spawned_child_holder.push(child);
+
     Ok(())
   }
 }

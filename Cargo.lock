@@ -4846,6 +4846,7 @@ dependencies = [
  "downloader",
  "filetime",
  "indicatif",
+ "serde_json",
  "sysinfo 0.33.0",
  "tokio",
  "walkdir",
