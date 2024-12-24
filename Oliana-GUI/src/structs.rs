@@ -28,3 +28,21 @@ impl Args {
     }
 }
 
+
+pub struct Globals {
+    pub server_proc: Option<std::process::Child>,
+}
+
+impl Globals {
+    pub fn new() -> Self {
+        Self {
+            server_proc: None,
+        }
+    }
+    pub fn initialize(&self) -> Result<(), Box<dyn std::error::Error>> {
+
+        Ok(())
+    }
+}
+
+

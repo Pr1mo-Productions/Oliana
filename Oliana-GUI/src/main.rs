@@ -25,6 +25,10 @@ const CLEAR_TOKEN: &'static str = "!!!CLEAR!!!";
 use clap::Parser;
 mod structs;
 
+lazy_static::lazy_static! {
+    static ref GLOBALS: std::sync::RwLock::<structs::Globals> = std::sync::RwLock::new(structs::Globals::new());
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>>  {
   let mut cli_args = structs::Args::parse();
   cli_args.update_from_env();

@@ -4817,6 +4817,7 @@ dependencies = [
  "bevy_simple_scroll_view",
  "bevy_simple_text_input",
  "clap",
+ "lazy_static",
  "num_cpus",
  "oliana_lib",
  "oliana_server",
