@@ -277,6 +277,29 @@ systemctl enable automatics-dns.timer
 
 ```
 
+# External SSD Setup
+
+```bash
+# There is a 500gb external SSD we will partition to provide swap space and mount to /backups to provide backups of the entire root filesystem.
+# Backups will be done using rsync, like in https://digitalis.io/blog/linux/incremental-backups-with-rsync-and-hard-links/ or https://gist.github.com/Jeffrey-P-McAteer/7d4b9052825914b5e0c500c04251e973
+yay -S arch-install-scripts xfsprogs
+
+sudo fdisk /dev/sda
+
+sudo mkswap /dev/sda1
+sudo swapon /dev/sda1
+
+sudo mkfs.xfs /dev/sda2
+sudo mkdir /backups
+sudo mount /dev/sda2 /backups
+
+genfstab -t PARTUUID / # Copy new lines into /etc/fstab
+
+# TODO write some scripts + a service + a daily timer to make backups under /opt/automatics/backup.sh or so
+
+
+```
+
 # Building & Running Oliana
 
 ```bash
@@ -289,9 +312,6 @@ yay -S python312 # torch isn't stable enough for 3.13, so we install this
 python -m ensurepip
 
 cargo build --release
-
-
-
 
 
 ```
@@ -319,3 +339,16 @@ openssl rand -hex 64
 docker-compose -f ~/Infrastructure/planka-docker-compose.yml up -d
 ```
 
+
+# Tailscale & Remote IP Infrastructure
+
+Because I'm hosting this at my parent's place, I don't want to open IP access for the entire world to non-hardened services. I'm fine with key-only SSH because that's pretty battle tested,
+but for services like `focalboard` and `planka` I'd prefer to limit remote access. Thus ports like `:8010->:8100` or so will not be forwarded and we will use tailscale for access.
+
+```bash
+sudo pacman -S tailscale
+sudo systemctl enable --now tailscaled.service
+
+sudo tailscale up # Do the interactive authentication
+
+```
