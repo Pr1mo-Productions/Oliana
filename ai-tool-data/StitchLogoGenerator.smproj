@@ -1,0 +1,142 @@
+{
+  "Version": 2,
+  "ProjectType": "TextToImage",
+  "State": {
+    "Modules": {
+      "$values": [
+        {
+          "$values": [
+            {
+              "Scale": 2,
+              "SelectedUpscaler": {
+                "Name": "nearest-exact",
+                "Type": 1,
+                "DownloadableResource": null,
+                "IsDownloadable": false
+              },
+              "$type": "Upscaler"
+            },
+            {
+              "Modules": {
+                "$values": []
+              },
+              "IsRefinerStepsEnabled": false,
+              "Steps": 20,
+              "RefinerSteps": 10,
+              "IsDenoiseStrengthEnabled": true,
+              "DenoiseStrength": 0.699999988079071,
+              "IsCfgScaleEnabled": false,
+              "CfgScale": 7,
+              "IsDimensionsEnabled": false,
+              "Width": 512,
+              "Height": 512,
+              "IsSamplerSelectionEnabled": false,
+              "SelectedSampler": {
+                "Name": "euler_ancestral"
+              },
+              "IsSchedulerSelectionEnabled": false,
+              "SelectedScheduler": {
+                "Name": "normal"
+              },
+              "InheritPrimarySamplerAddons": true,
+              "EnableAddons": true,
+              "$type": "Sampler"
+            }
+          ],
+          "IsEnabled": false,
+          "$type": "HiresFixModule"
+        },
+        {
+          "$values": [
+            {
+              "Scale": 2,
+              "SelectedUpscaler": {
+                "Name": "nearest-exact",
+                "Type": 1,
+                "DownloadableResource": null,
+                "IsDownloadable": false
+              },
+              "$type": "Upscaler"
+            }
+          ],
+          "IsEnabled": false,
+          "$type": "UpscalerModule"
+        }
+      ]
+    },
+    "Model": {
+      "SelectedModelName": "disneyrealcartoonmix_v10.safetensors",
+      "SelectedRefinerName": "@none",
+      "SelectedVaeName": "@default",
+      "SelectedClip1Name": null,
+      "SelectedClip2Name": null,
+      "ModelLoader": 0,
+      "ClipSkip": 1,
+      "IsVaeSelectionEnabled": false,
+      "IsRefinerSelectionEnabled": false,
+      "IsClipSkipEnabled": false,
+      "IsExtraNetworksEnabled": true,
+      "IsModelLoaderSelectionEnabled": false,
+      "ExtraNetworks": {
+        "$values": [
+          {
+            "$values": [
+              {
+                "SelectedModelName": "st1tch4(0,75)CIVIT.safetensors",
+                "IsModelWeightEnabled": true,
+                "IsClipWeightEnabled": false,
+                "ModelWeight": 0.8,
+                "ClipWeight": 1,
+                "$type": "ExtraNetwork"
+              }
+            ],
+            "IsEnabled": true,
+            "$type": "LoraModule"
+          }
+        ]
+      }
+    },
+    "Sampler": {
+      "Modules": {
+        "$values": []
+      },
+      "IsRefinerStepsEnabled": false,
+      "Steps": 52,
+      "RefinerSteps": 10,
+      "IsDenoiseStrengthEnabled": false,
+      "DenoiseStrength": 1,
+      "IsCfgScaleEnabled": true,
+      "CfgScale": 5.75,
+      "IsDimensionsEnabled": true,
+      "Width": 512,
+      "Height": 512,
+      "IsSamplerSelectionEnabled": true,
+      "SelectedSampler": {
+        "Name": "euler_ancestral"
+      },
+      "IsSchedulerSelectionEnabled": true,
+      "SelectedScheduler": {
+        "Name": "normal"
+      },
+      "InheritPrimarySamplerAddons": true,
+      "EnableAddons": true
+    },
+    "Prompt": {
+      "Prompt": "Logo of stitch wearing ((Nvidia)) GPU t-shirt with code in eyes",
+      "NegativePrompt": "3D",
+      "ModulesCardState": {
+        "$values": []
+      }
+    },
+    "BatchSize": {
+      "BatchSize": 1,
+      "BatchCount": 3,
+      "IsBatchIndexEnabled": false,
+      "BatchIndex": 1
+    },
+    "Seed": {
+      "Seed": "1683151286",
+      "IsRandomizeEnabled": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# sudo vim /etc/systemd/system/oliana-server.service
+# sudo systemctl enable --now oliana-server.service
+
+[Unit]
+Description=Run oliana_server from the default development folder
+
+[Service]
+Type=simple
+WorkingDirectory=/home/user/Oliana
+User=user
+Group=user
+ExecStart=/home/user/Oliana/target/release/oliana_server
+Restart=always
+RestartSec=36
+
+[Install]
+WantedBy=multi-user.target
+

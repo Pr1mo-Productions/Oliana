@@ -31,12 +31,24 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     use futures::StreamExt;
     use tarpc::server::incoming::Incoming;
 
-    // TODO allow passing in configs for each of these folders
+    // TODO allow passing in configs for each of these folders; env vars are nice, config files are nicer!
+
     let mut expected_bin_directory = std::env::current_dir()?;
     if expected_bin_directory.join("target").exists() {
         expected_bin_directory = expected_bin_directory.join("target");
     }
-    let track_proc_dir = expected_bin_directory.clone();
+    let mut track_proc_dir = expected_bin_directory.clone();
+
+    if let Ok(env_expected_bin_dir) = std::env::var("OLIANA_BIN_DIR") {
+        if std::path::Path::new(&expected_bin_directory).exists() {
+            expected_bin_directory = expected_bin_directory.into();
+        }
+    }
+
+    if let Ok(env_track_proc_dir) = std::env::var("OLIANA_TRACKED_PROC_DIR") {
+        track_proc_dir = track_proc_dir.into();
+    }
+
 
     let mut procs = oliana_lib::launchers::TrackedProcs::new(expected_bin_directory.clone(), track_proc_dir.clone());
 
