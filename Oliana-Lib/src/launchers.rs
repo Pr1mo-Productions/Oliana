@@ -27,6 +27,17 @@ impl TrackedProcs {
     }
   }
 
+  pub fn new_from_env() -> Result<Self, Box<dyn std::error::Error>> {
+    Ok(Self {
+      proc_track_dir: std::env::var("OLIANA_TRACKED_PROC_DIR")?.into(),
+      expected_bin_directory: std::env::var("OLIANA_BIN_DIR")?.into(),
+      procs: Vec::with_capacity(8),
+      tracked_proc_args: Vec::with_capacity(8),
+      sinfo: sysinfo::System::new(),
+      spawned_children: Vec::with_capacity(32),
+    })
+  }
+
   pub fn register_tracked_proc(&mut self, process_bin_name: &str, process_args: &[&str]) {
     let mut owned_p_args = Vec::with_capacity(process_args.len());
     for arg in process_args {
