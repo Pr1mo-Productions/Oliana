@@ -296,3 +296,26 @@ cargo build --release
 
 ```
 
+
+# Docker & Team Management SW
+
+```bash
+sudo pacman -S docker
+sudo systemctl enable --now docker.service
+
+yay -S lazydocker # Cool TUI for docker service management
+
+# Creation of the 'oliana-focalboard' container, available on :8010
+docker run -p 8010:8000 --name oliana-focalboard mattermost/focalboard
+docker start oliana-focalboard
+
+# Goto <IP>:8010 and click "register a new user"; the first one is always allowed.
+
+yay -S docker-compose
+# Creation of the 'oliana-planka' container, available on :8011
+# See https://docs.planka.cloud/docs/installation/docker/production_version
+curl -L https://raw.githubusercontent.com/plankanban/planka/master/docker-compose.yml -o ~/Infrastructure/planka-docker-compose.yml
+openssl rand -hex 64
+docker-compose -f ~/Infrastructure/planka-docker-compose.yml up -d
+```
+

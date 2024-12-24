@@ -48,11 +48,13 @@ server_port = '92'
 if 'SERVER_PORT' in os.environ:
   server_port = os.environ.get('SERVER_PORT', server_port)
 
-
 cmd = [
   'ssh',
   '-i', ssh_key_path,
   '-p', f'{server_port}',
+  '-L', '8010:127.0.0.1:8010', # Forward :8010 on the box to 127.0.0.1:8010 in stitch
+  '-L', '8011:127.0.0.1:8011', # Forward :8011 on the box to 127.0.0.1:8011 in stitch
+  '-L', '8012:127.0.0.1:8012', # Forward :8012 on the box to 127.0.0.1:8012 in stitch
   f'user@{server_name}'
 ]
 
