@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, world!");
+    println!("{}", oliana_lib::build_meta::get_credits_txt());
 }
