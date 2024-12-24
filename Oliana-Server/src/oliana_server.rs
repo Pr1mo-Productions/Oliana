@@ -40,13 +40,13 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     let mut track_proc_dir = expected_bin_directory.clone();
 
     if let Ok(env_expected_bin_dir) = std::env::var("OLIANA_BIN_DIR") {
-        if std::path::Path::new(&expected_bin_directory).exists() {
-            expected_bin_directory = expected_bin_directory.into();
+        if std::path::Path::new(&env_expected_bin_dir).exists() {
+            expected_bin_directory = env_expected_bin_dir.into();
         }
     }
 
     if let Ok(env_track_proc_dir) = std::env::var("OLIANA_TRACKED_PROC_DIR") {
-        track_proc_dir = track_proc_dir.into();
+        track_proc_dir = env_track_proc_dir.into();
     }
 
 

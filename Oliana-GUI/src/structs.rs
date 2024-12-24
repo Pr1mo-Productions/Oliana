@@ -39,9 +39,38 @@ impl Globals {
             server_proc: None,
         }
     }
+
     pub fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
 
-        eprintln!("TODO perform server initialization for GUI process");
+        let mut expected_bin_directory = std::env::current_dir()?;
+        if expected_bin_directory.join("target").exists() {
+            expected_bin_directory = expected_bin_directory.join("target");
+        }
+        let mut track_proc_dir = expected_bin_directory.clone();
+
+        if let Ok(env_expected_bin_dir) = std::env::var("OLIANA_BIN_DIR") {
+            if std::path::Path::new(&env_expected_bin_dir).exists() {
+                expected_bin_directory = env_expected_bin_dir.into();
+            }
+        }
+
+        if let Ok(env_track_proc_dir) = std::env::var("OLIANA_TRACKED_PROC_DIR") {
+            track_proc_dir = env_track_proc_dir.into();
+        }
+
+        let oliana_server_bin = oliana_lib::files::find_newest_mtime_bin_under_folder(&expected_bin_directory, "oliana_server")?;
+
+        eprintln!("OLIANA_BIN_DIR={:?}", &expected_bin_directory);
+        eprintln!("OLIANA_TRACKED_PROC_DIR={:?}", &track_proc_dir);
+        eprintln!("Spawning {:?}", &oliana_server_bin);
+
+        let child = std::process::Command::new(&oliana_server_bin)
+                        //.args(&[])
+                        .env("OLIANA_TRACKED_PROC_DIR", track_proc_dir)
+                        .env("OLIANA_BIN_DIR", expected_bin_directory)
+                        .spawn()?;
+
+        self.server_proc = Some(child);
 
         Ok(())
     }

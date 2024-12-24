@@ -48,7 +48,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   println!("If 'NAME.json' has an mtime older than this process's start time, it will not be processed.");
   println!("");
 
-  tokio::fs::create_dir_all(&env_var_work_dir[..]).await?;
+  tokio::fs::create_dir_all(&env_var_work_dir[..]).await.map_err(oliana_lib::eloc!())?;
 
   std::env::set_var(
     "WORK_DIR", env_var_work_dir.clone()
@@ -56,7 +56,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
   let site_packages = oliana_lib::files::get_cache_file("Oliana-Images-site_packages").map_err(oliana_lib::eloc!())?;
   let site_packages = site_packages.to_string_lossy();
-  tokio::fs::create_dir_all(&site_packages[..]).await?;
+  tokio::fs::create_dir_all(&site_packages[..]).await.map_err(oliana_lib::eloc!())?;
 
   let pythonpath = std::env::join_paths(&[
     site_packages.to_string(),
@@ -93,7 +93,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 
   let hf_home = oliana_lib::files::get_cache_file("Oliana-Images-hf_home").map_err(oliana_lib::eloc!())?;
   let hf_home = hf_home.to_string_lossy();
-  tokio::fs::create_dir_all(&hf_home[..]).await?;
+  tokio::fs::create_dir_all(&hf_home[..]).await.map_err(oliana_lib::eloc!())?;
 
   eprintln!("Storing model data at {hf_home}");
 
@@ -106,10 +106,10 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
   Ok(())
 }
 
-fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
+fn python_main(site_packages: &str, env_var_work_dir: &str) -> Result<(), Box<dyn std::error::Error>>  {
   Python::with_gil(|py| {
       let sys = py.import("sys")?;
-      let version: String = sys.getattr("version")?.extract()?;
+      let version: String = sys.getattr("version").map_err(oliana_lib::eloc!())?.extract().map_err(oliana_lib::eloc!())?;
 
       println!("Oliana-Images is using Python {version} for processing");
 
@@ -122,14 +122,16 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
             eprintln!("");
           }
           Ok(ensurepip) => {
-            let ensurepip_main: Py<PyAny> = ensurepip.getattr("_main")?.into();
-            ensurepip_main.call1(py, ( ) )?;
+            let ensurepip_main: Py<PyAny> = ensurepip.getattr("_main").map_err(oliana_lib::eloc!())?.into();
+            if let Err(e) = ensurepip_main.call1(py, ( ) ).map_err(oliana_lib::eloc!()) {
+              eprintln!("{}:{} {:?}", file!(), line!(), e);
+            }
           }
         }
       }
 
       let pip = py.import("pip")?;
-      let pip_main: Py<PyAny> = pip.getattr("main")?.into();
+      let pip_main: Py<PyAny> = pip.getattr("main").map_err(oliana_lib::eloc!())?.into();
 
       if let Err(e) = py.import("torch") {
         eprintln!("{:?}", e);
@@ -138,10 +140,10 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
           "--index-url".to_string(), "https://download.pytorch.org/whl/cu124".to_string(),
         ];
         let args = (arg_vals, );
-        pip_main.call1(py, args)?;
+        pip_main.call1(py, args).map_err(oliana_lib::eloc!())?;
       }
 
-      let torch = py.import("torch")?;
+      let torch = py.import("torch").map_err(oliana_lib::eloc!())?;
       eprintln!("torch = {:?}", torch);
 
 
@@ -151,10 +153,10 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
           "install".to_string(), format!("--target={site_packages}"), "transformers".to_string(),
         ];
         let args = (arg_vals, );
-        pip_main.call1(py, args)?;
+        pip_main.call1(py, args).map_err(oliana_lib::eloc!())?;
       }
 
-      let transformers = py.import("transformers")?;
+      let transformers = py.import("transformers").map_err(oliana_lib::eloc!())?;
       eprintln!("transformers = {:?}", transformers);
 
 
@@ -164,10 +166,10 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
           "install".to_string(), format!("--target={site_packages}"), "diffusers".to_string(),
         ];
         let args = (arg_vals, );
-        pip_main.call1(py, args)?;
+        pip_main.call1(py, args).map_err(oliana_lib::eloc!())?;
       }
 
-      let diffusers = py.import("diffusers")?;
+      let diffusers = py.import("diffusers").map_err(oliana_lib::eloc!())?;
       eprintln!("diffusers = {:?}", diffusers);
 
       /*if let Err(e) = py.import("accelerate") {
@@ -188,10 +190,10 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> PyResult<()> {
           "install".to_string(), format!("--target={site_packages}"), "json5".to_string(),
         ];
         let args = (arg_vals, );
-        pip_main.call1(py, args)?;
+        pip_main.call1(py, args).map_err(oliana_lib::eloc!())?;
       }
 
-      let json5 = py.import("json5")?;
+      let json5 = py.import("json5").map_err(oliana_lib::eloc!())?;
       eprintln!("json5 = {:?}", json5);
 
       let python_module = PyModule::from_code(
@@ -295,9 +297,9 @@ def main(env_var_work_dir):
           c_str!("in_memory"),
       )?;
 
-      let python_entry_fn: Py<PyAny> = python_module.getattr("main")?.into();
+      let python_entry_fn: Py<PyAny> = python_module.getattr("main").map_err(oliana_lib::eloc!())?.into();
 
-      python_entry_fn.call1(py, (env_var_work_dir, ) )?;
+      python_entry_fn.call1(py, (env_var_work_dir, ) ).map_err(oliana_lib::eloc!())?;
 
       Ok(())
   })
