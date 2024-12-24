@@ -39,7 +39,9 @@ impl Globals {
             server_proc: None,
         }
     }
-    pub fn initialize(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+
+        eprintln!("TODO perform server initialization for GUI process");
 
         Ok(())
     }

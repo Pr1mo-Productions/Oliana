@@ -51,6 +51,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
 }
 
 pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::error::Error>> {
+
+  if let Ok(mut globals_wl) = GLOBALS.try_write() {
+    if let Err(e) = globals_wl.initialize() {
+        eprintln!("{}:{} {}", file!(), line!(), e);
+    }
+  }
+
   App::new()
     .add_plugins(DefaultPlugins
             .set(WindowPlugin {
