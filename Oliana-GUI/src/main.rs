@@ -43,11 +43,93 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
   rt.block_on(async {
     if let Err(e) = main_async(&cli_args).await {
       eprintln!("[ main_async ] {}", e);
-      std::process::exit(1);
+      cleanup_and_exit(1);
     }
   });
+  cleanup_and_exit(0);
+  // Ok(())
+}
 
-  Ok(())
+pub fn poll_until_exit_or_elapsed(sys: &mut sysinfo::System, pid: usize, ms_to_poll_for: isize) {
+    let mut remaining_ms: isize = ms_to_poll_for;
+    const POLL_MS: isize = 50;
+    let pid = sysinfo::Pid::from(pid);
+    while remaining_ms > 1 {
+        remaining_ms -= POLL_MS;
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+        if let Some(_process) = sys.process(sysinfo::Pid::from(pid)) {
+            // Process is still running!
+        }
+        else {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(POLL_MS as u64));
+    }
+}
+
+pub fn cleanup_and_exit(code: i32) -> ! {
+  if let Ok(mut globals_wl) = GLOBALS.try_write() {
+    let mut sys = sysinfo::System::new_all();
+    sys.refresh_all();
+
+    if let Some(ref mut server_proc) = &mut globals_wl.server_proc {
+        if let Some(process) = sys.process(sysinfo::Pid::from(server_proc.id() as usize)) {
+            process.kill_with(sysinfo::Signal::Term);
+        }
+        poll_until_exit_or_elapsed(&mut sys, server_proc.id() as usize, 1200);
+        if let Some(_process) = sys.process(sysinfo::Pid::from(server_proc.id() as usize)) {
+            eprintln!("[ Note ] oliana_server did not exit in 1200ms, killing...");
+            if let Err(e) = server_proc.kill() {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+            }
+        }
+        else {
+            eprintln!("[ Note ] oliana_server cleanly exited with SigTerm");
+        }
+    }
+    // We walk globals_wl.track_proc_dir for "*-pid.txt" files, read the first integer, and kill those processes as well.
+    let mut potential_child_pids: Vec<usize> = vec![];
+    match std::fs::read_dir(&globals_wl.track_proc_dir) {
+        Ok(child_dirents) => {
+            for dirent in child_dirents {
+                if let Ok(dirent) = dirent {
+                    let path = dirent.path();
+                    let path_s = path.to_string_lossy();
+                    if path_s.ends_with("-pid.txt") || path_s.ends_with("-pid.TXT") {
+                        if let Ok(path_content_s) = std::fs::read_to_string(&path) {
+                            let path_content_s_trimmed = path_content_s.trim();
+                            if let Ok(child_pid_num) = path_content_s_trimmed.parse::<usize>() {
+                                potential_child_pids.push(child_pid_num);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+    }
+
+    for child_pid_num in &potential_child_pids {
+        if let Some(process) = sys.process(sysinfo::Pid::from(*child_pid_num)) {
+            eprintln!("[ Note ] Sending SigTerm to {:?} ({})", process.exe(), child_pid_num );
+            process.kill_with(sysinfo::Signal::Term);
+        }
+    }
+
+    std::thread::sleep(std::time::Duration::from_millis(800));
+
+    for child_pid_num in &potential_child_pids {
+        if let Some(process) = sys.process(sysinfo::Pid::from(*child_pid_num)) {
+            eprintln!("[ Note ] Sending SigKill to {:?} ({})", process.exe(), child_pid_num );
+            process.kill_with(sysinfo::Signal::Kill);
+        }
+    }
+
+  }
+
+  std::process::exit(code)
 }
 
 pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::error::Error>> {

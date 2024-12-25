@@ -4824,6 +4824,7 @@ dependencies = [
  "rand",
  "rand_core",
  "serde",
+ "sysinfo 0.33.0",
  "tokio",
 ]
 

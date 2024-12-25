@@ -31,12 +31,16 @@ impl Args {
 
 pub struct Globals {
     pub server_proc: Option<std::process::Child>,
+    pub expected_bin_directory: std::path::PathBuf,
+    pub track_proc_dir: std::path::PathBuf,
 }
 
 impl Globals {
     pub fn new() -> Self {
         Self {
             server_proc: None,
+            expected_bin_directory: std::path::PathBuf::new(),
+            track_proc_dir: std::path::PathBuf::new(),
         }
     }
 
@@ -57,6 +61,9 @@ impl Globals {
         if let Ok(env_track_proc_dir) = std::env::var("OLIANA_TRACKED_PROC_DIR") {
             track_proc_dir = env_track_proc_dir.into();
         }
+
+        self.expected_bin_directory = expected_bin_directory.clone();
+        self.track_proc_dir = track_proc_dir.clone();
 
         let oliana_server_bin = oliana_lib::files::find_newest_mtime_bin_under_folder(&expected_bin_directory, "oliana_server")?;
 
