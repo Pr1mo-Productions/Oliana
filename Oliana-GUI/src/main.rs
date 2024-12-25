@@ -69,6 +69,7 @@ pub fn poll_until_exit_or_elapsed(sys: &mut sysinfo::System, pid: usize, ms_to_p
 
 pub fn cleanup_and_exit(code: i32) -> ! {
   if let Ok(mut globals_wl) = GLOBALS.try_write() {
+
     let mut sys = sysinfo::System::new_all();
     sys.refresh_all();
 
@@ -76,9 +77,9 @@ pub fn cleanup_and_exit(code: i32) -> ! {
         if let Some(process) = sys.process(sysinfo::Pid::from(server_proc.id() as usize)) {
             process.kill_with(sysinfo::Signal::Term);
         }
-        poll_until_exit_or_elapsed(&mut sys, server_proc.id() as usize, 1200);
+        poll_until_exit_or_elapsed(&mut sys, server_proc.id() as usize, 1800);
         if let Some(_process) = sys.process(sysinfo::Pid::from(server_proc.id() as usize)) {
-            eprintln!("[ Note ] oliana_server did not exit in 1200ms, killing...");
+            eprintln!("[ Note ] oliana_server did not exit in 1800ms, killing...");
             if let Err(e) = server_proc.kill() {
                 eprintln!("{}:{} {:?}", file!(), line!(), e);
             }
@@ -118,7 +119,7 @@ pub fn cleanup_and_exit(code: i32) -> ! {
         }
     }
 
-    std::thread::sleep(std::time::Duration::from_millis(800));
+    std::thread::sleep(std::time::Duration::from_millis(1800));
 
     for child_pid_num in &potential_child_pids {
         if let Some(process) = sys.process(sysinfo::Pid::from(*child_pid_num)) {
