@@ -189,18 +189,30 @@ impl OneTrackedProc {
   }
 
   pub fn update_proc_output_txt_from_files(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::Write;
+
     // We simply append here, spawn_proc.() will place a "================ PID {} ================" banner across process re-starts.
     // If length is ever > 32kb, we remove the first 8kb chunk from the beginning of the in-memory string
     if let Ok(current_pid_stdout) = std::fs::read_to_string(&self.filesystem_stdout_filepath) {
       if current_pid_stdout.len() > self.filesystem_stdout_read_bytes {
-        self.proc_output_txt.push_str(&current_pid_stdout[self.filesystem_stdout_read_bytes..]);
+        let new_stdout = &current_pid_stdout[self.filesystem_stdout_read_bytes..];
+        self.proc_output_txt.push_str(new_stdout);
         self.filesystem_stdout_read_bytes += current_pid_stdout.len() - self.filesystem_stdout_read_bytes;
+        print!("{}", new_stdout);
+        if let Err(e) = std::io::stdout().flush() {
+            println!("{}:{} {}", file!(), line!(), e);
+        }
       }
     }
     if let Ok(current_pid_stderr) = std::fs::read_to_string(&self.filesystem_stderr_filepath) {
       if current_pid_stderr.len() > self.filesystem_stderr_read_bytes {
-        self.proc_output_txt.push_str(&current_pid_stderr[self.filesystem_stderr_read_bytes..]);
+        let new_stderr = &current_pid_stderr[self.filesystem_stderr_read_bytes..];
+        self.proc_output_txt.push_str(new_stderr);
         self.filesystem_stderr_read_bytes += current_pid_stderr.len() - self.filesystem_stderr_read_bytes;
+        eprint!("{}", new_stderr);
+        if let Err(e) = std::io::stdout().flush() {
+            println!("{}:{} {}", file!(), line!(), e);
+        }
       }
     }
 
