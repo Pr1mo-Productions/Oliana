@@ -9,6 +9,8 @@ Type=simple
 WorkingDirectory=/home/user/Oliana
 User=user
 Group=user
+# We'll use port 8011 b/c it's in the list of ports I threw into remote-to-stitch.py
+Environment="PORT=8011"
 ExecStart=/home/user/Oliana/target/release/oliana_server
 Restart=always
 RestartSec=36
