@@ -190,7 +190,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 Err(e) => {
                                     allowed_errors_remaining -= 1;
-                                    eprintln!("{:?}", e);
+                                    eprintln!("{}:{} {:?}", file!(), line!(), e);
                                     out_txt_fd.write_all(format!("\n{:#?}\n", e).as_bytes()).await?;
                                 }
                             }
@@ -203,7 +203,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Err(e) => {
                     allowed_errors_remaining -= 1;
-                    eprintln!("{:?}", e);
+                    eprintln!("{}:{} {:?}", file!(), line!(), e);
                 }
             }
         }
@@ -212,7 +212,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     if allowed_errors_remaining < 1 {
         break;
     }
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(180)).await;
   }
 
   Ok(())
