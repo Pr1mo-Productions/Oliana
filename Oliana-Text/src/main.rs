@@ -212,7 +212,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     if allowed_errors_remaining < 1 {
         break;
     }
-    tokio::time::sleep(std::time::Duration::from_millis(180)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
   }
 
   Ok(())
