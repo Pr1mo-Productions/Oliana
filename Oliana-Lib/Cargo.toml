@@ -14,3 +14,6 @@ sysinfo =      { version = "0.33" }
 build-time =   { version = "0.1" }
 serde_json =   { version = "1" }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.26" }
+# ^^ Used to send STOP/CONT to processes when server detects IDLE activity; while IDLE processes still run but at 10% speed

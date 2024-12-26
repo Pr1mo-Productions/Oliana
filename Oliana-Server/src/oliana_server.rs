@@ -25,6 +25,12 @@ async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(fut);
 }
 
+
+// This is used for the TCP listeners to communicate liviliness to the background task which ensures sub-processes are running.
+// When system is idle on Linux systems, children get SIGSTOP/CONT-ed to limit CPU use when nobody has connected for >20s.
+static LAST_CLIENT_CONNECT_TIME_EPOCH_S: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+
 async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     use tarpc::server::Channel;
     use oliana_server_lib::Oliana;
@@ -109,24 +115,60 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     // Start an infinite tokio task to call ensure_registered_procs_running()? every 2 seconds or so.
     let ensure_registered_procs_running_t_shareable_procs = shareable_procs.clone();
     tokio::task::spawn(async move {
+        let mut ms_since_last_ensured_running: u64 = 0;
+        const MS_TO_TICK_FOR: u64 = 75;
+        let tick_delay_duration = std::time::Duration::from_millis(MS_TO_TICK_FOR);
+        const MS_TO_RESUME_PROCS_FOR: u64 = 25;
+        let resume_duration = std::time::Duration::from_millis(MS_TO_RESUME_PROCS_FOR);
+        let mut last_tick_procs_should_be_stopped = false;
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(2600)).await;
-            if let Ok(mut write_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_write() {
-                if let Err(e) = write_lock_guard.ensure_registered_procs_running() {
-                    eprintln!("Error polling ensure_registered_procs_running: {:?}", e);
+            tokio::time::sleep(tick_delay_duration).await;
+            ms_since_last_ensured_running += MS_TO_TICK_FOR;
+
+            if let Ok(read_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_read() {
+                if let Err(e) = read_lock_guard.resume_sigstop_procs(resume_duration) {
+                    eprintln!("{}:{} {:?}", file!(), line!(), e);
                 }
             }
-            if let Ok(read_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_read() {
-                // Now we summarize sub-process running state and write to 2 files that other programs can poll to report subprocess status.
-                // This is primarially used so things like Oliana-GUI can tell a user "You don't have CUDA/OneAPI/<tech-of-choice>" without needing to actually EMBED <tech-of-choice> to perform the measurement.
-                let data = read_lock_guard.get_proc_restart_counts();
-                if let Err(e) = oliana_lib::files::set_cache_file_server_proc_restart_data(&data) {
-                    eprintln!("{}:{} {}", file!(), line!(), e);
+
+            if ms_since_last_ensured_running > 2600 {
+                if let Ok(mut write_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_write() {
+                    if let Err(e) = write_lock_guard.ensure_registered_procs_running() {
+                        eprintln!("Error polling ensure_registered_procs_running: {:?}", e);
+                    }
+                    // If it's been > 20s since last incoming message, begin SIGSTOP-ing child processes?
+                    #[cfg(target_os = "linux")]
+                    {
+                        if let Ok(duration) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                            let last_client_connect_s = LAST_CLIENT_CONNECT_TIME_EPOCH_S.load(std::sync::atomic::Ordering::Relaxed);
+                            let seconds_since_last_client_connect = duration.as_secs() - last_client_connect_s;
+                            let procs_should_be_stopped = seconds_since_last_client_connect > 24;
+                            if procs_should_be_stopped != last_tick_procs_should_be_stopped {
+                                if procs_should_be_stopped {
+                                    eprintln!("oliana_server is suspending child processes periodically because the last client connect was {} seconds ago! (procs_should_be_stopped={})", seconds_since_last_client_connect, procs_should_be_stopped);
+                                }
+                                else {
+                                    eprintln!("oliana_server is resuming child processes because the last client connect was {} seconds ago! (procs_should_be_stopped={})", seconds_since_last_client_connect, procs_should_be_stopped);
+                                }
+                            }
+                            write_lock_guard.set_procs_should_be_stopped(procs_should_be_stopped);
+                            last_tick_procs_should_be_stopped = procs_should_be_stopped;
+                        }
+                    }
                 }
-                let data = read_lock_guard.get_proc_outputs();
-                if let Err(e) = oliana_lib::files::set_cache_file_server_proc_outputs_data(&data) {
-                    eprintln!("{}:{} {}", file!(), line!(), e);
+                if let Ok(read_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_read() {
+                    // Now we summarize sub-process running state and write to 2 files that other programs can poll to report subprocess status.
+                    // This is primarially used so things like Oliana-GUI can tell a user "You don't have CUDA/OneAPI/<tech-of-choice>" without needing to actually EMBED <tech-of-choice> to perform the measurement.
+                    let data = read_lock_guard.get_proc_restart_counts();
+                    if let Err(e) = oliana_lib::files::set_cache_file_server_proc_restart_data(&data) {
+                        eprintln!("{}:{} {}", file!(), line!(), e);
+                    }
+                    let data = read_lock_guard.get_proc_outputs();
+                    if let Err(e) = oliana_lib::files::set_cache_file_server_proc_outputs_data(&data) {
+                        eprintln!("{}:{} {}", file!(), line!(), e);
+                    }
                 }
+                ms_since_last_ensured_running = 0;
             }
         }
     });
@@ -187,6 +229,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                     &shareable_ipv6_ai_workdir_images[..],
                     &shareable_ipv6_ai_workdir_text[..]
                 );
+                if let Ok(duration) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                    LAST_CLIENT_CONNECT_TIME_EPOCH_S.store(duration.as_secs(), std::sync::atomic::Ordering::Relaxed);
+                }
                 channel.execute(server.serve()).for_each(spawn)
             })
             // Max 10 channels.
@@ -212,6 +257,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                             &shareable_ipv4_ai_workdir_images[..],
                             &shareable_ipv4_ai_workdir_text[..]
                         );
+                        if let Ok(duration) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                            LAST_CLIENT_CONNECT_TIME_EPOCH_S.store(duration.as_secs(), std::sync::atomic::Ordering::Relaxed);
+                        }
                         channel.execute(server.serve()).for_each(spawn)
                     })
                     // Max 10 channels.

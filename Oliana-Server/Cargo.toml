@@ -31,3 +31,7 @@ serde_json = { version = "1" }
 clap =         { version = "4", features = ["derive"] }
 
 
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.26" }
+# ^^ Used to send STOP/CONT to processes when server detects IDLE activity; while IDLE processes still run but at 10% speed
+

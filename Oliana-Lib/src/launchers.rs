@@ -13,6 +13,7 @@ pub struct TrackedProcs {
   pub tracked_proc_args: Vec<(String, Vec<String>)>,
   pub sinfo: sysinfo::System,
   pub spawned_children: Vec<std::process::Child>,
+  pub procs_should_be_stopped: bool,
 }
 
 impl TrackedProcs {
@@ -24,6 +25,7 @@ impl TrackedProcs {
       tracked_proc_args: Vec::with_capacity(8),
       sinfo: sysinfo::System::new(),
       spawned_children: Vec::with_capacity(32),
+      procs_should_be_stopped: false,
     }
   }
 
@@ -35,6 +37,7 @@ impl TrackedProcs {
       tracked_proc_args: Vec::with_capacity(8),
       sinfo: sysinfo::System::new(),
       spawned_children: Vec::with_capacity(32),
+      procs_should_be_stopped: false,
     })
   }
 
@@ -51,6 +54,57 @@ impl TrackedProcs {
   pub fn ensure_registered_procs_running(&mut self) -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..self.tracked_proc_args.len() {
       self.ensure_named_proc_running(self.tracked_proc_args[i].0.clone(), self.tracked_proc_args[i].1.clone())?; // TODO engineer those .clone()s out of here!
+    }
+    Ok(())
+  }
+
+  pub fn resume_sigstop_procs(&self, resume_for_duration: std::time::Duration) -> Result<(), Box<dyn std::error::Error>> {
+    if self.procs_should_be_stopped {
+      // TODO
+      #[cfg(target_os = "linux")]
+      {
+        if let Err(e) = self.send_signal_to_children(nix::sys::signal::Signal::SIGCONT) {
+          eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+        std::thread::sleep(resume_for_duration);
+        if let Err(e) = self.send_signal_to_children(nix::sys::signal::Signal::SIGSTOP) {
+          eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+      }
+    }
+    Ok(())
+  }
+
+  pub fn set_procs_should_be_stopped(&mut self, should_be_stopped: bool) {
+    if ! should_be_stopped && self.procs_should_be_stopped {
+      // Send sig-cont to everyone!
+      #[cfg(target_os = "linux")]
+      {
+        if let Err(e) = self.send_signal_to_children(nix::sys::signal::Signal::SIGCONT) {
+          eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+      }
+    }
+    self.procs_should_be_stopped = should_be_stopped;
+  }
+
+  #[cfg(target_os = "linux")]
+  pub fn send_signal_to_children(&self, signal: impl Into<nix::sys::signal::Signal>) -> Result<(), Box<dyn std::error::Error>> {
+    let signal = signal.into();
+    for i in 0..self.procs.len() {
+      if let Some(pid) = self.procs[i].get_last_expected_pid_fast() {
+        if let Err(e) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid as i32), signal) {
+          eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+      }
+      else {
+        // Could not get a FAST pid, so for correctness we'll go ALL THE WAY to the filesystem for it -_-
+        if let Ok(Some(pid)) = self.procs[i].get_expected_pid() {
+          if let Err(e) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid as i32), signal) {
+            eprintln!("{}:{} {:?}", file!(), line!(), e);
+          }
+        }
+      }
     }
     Ok(())
   }
@@ -85,6 +139,7 @@ impl TrackedProcs {
         filesystem_stderr_read_bytes: 0,
         proc_restart_count: 0,
         proc_output_txt: String::new(),
+        last_expected_pid: std::sync::RwLock::new(None)
       };
       otp.spawn_proc(&process_args, &mut self.spawned_children)?;
       self.procs.push(otp);
@@ -123,6 +178,7 @@ pub struct OneTrackedProc {
   pub filesystem_stderr_read_bytes: usize,
   pub proc_restart_count: u32,
   pub proc_output_txt: String,
+  pub last_expected_pid: std::sync::RwLock::<Option<u32>>,
 }
 
 impl OneTrackedProc {
@@ -130,9 +186,22 @@ impl OneTrackedProc {
     if self.filesystem_pid_filepath.exists() {
       let file_content = std::fs::read_to_string(&self.filesystem_pid_filepath).map_err(crate::err::eloc!())?;
       let pid_num = file_content.parse::<u32>().map_err(crate::err::eloc!())?;
+      if let Ok(mut write_lock) = self.last_expected_pid.write() {
+        *write_lock = Some(pid_num);
+      }
       return Ok(Some(pid_num));
     }
     Ok(None)
+  }
+
+  pub fn get_last_expected_pid_fast(&self) -> Option<u32> {
+    let mut result = None;
+    if let Ok(read_lock) = self.last_expected_pid.read() {
+      if let Some(val) = *read_lock {
+        result = Some(val);
+      }
+    }
+    result
   }
 
   pub fn is_running(&self, sinfo: &mut sysinfo::System, spawned_child_holder: &mut Vec<std::process::Child>) -> Result<bool, Box<dyn std::error::Error>> {
@@ -256,6 +325,10 @@ impl OneTrackedProc {
     }
 
     let pid = child.id();
+
+    if let Ok(mut write_lock) = self.last_expected_pid.write() {
+      *write_lock = Some(pid);
+    }
 
     let pid_file_content = format!("{pid}");
 
