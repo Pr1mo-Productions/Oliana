@@ -131,7 +131,13 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let port: u16 = 9050;
+    let mut port: u16 = 9050;
+    if let Ok(env_val) = std::env::var("PORT") {
+        if let Ok(parsed_port_num) = env_val.parse::<u16>() {
+            eprintln!("Overriding default port of {} with environment PORT={}", port, parsed_port_num);
+            port = parsed_port_num;
+        }
+    }
 
     let ipv4_server_addr = (std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), port);
     let ipv6_server_addr = (std::net::IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED), port);
