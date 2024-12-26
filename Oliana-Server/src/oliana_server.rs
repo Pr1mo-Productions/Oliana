@@ -116,9 +116,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     let ensure_registered_procs_running_t_shareable_procs = shareable_procs.clone();
     tokio::task::spawn(async move {
         let mut ms_since_last_ensured_running: u64 = 0;
-        const MS_TO_TICK_FOR: u64 = 75;
+        const MS_TO_TICK_FOR: u64 = 80;
         let tick_delay_duration = std::time::Duration::from_millis(MS_TO_TICK_FOR);
-        const MS_TO_RESUME_PROCS_FOR: u64 = 25;
+        const MS_TO_RESUME_PROCS_FOR: u64 = 20;
         let resume_duration = std::time::Duration::from_millis(MS_TO_RESUME_PROCS_FOR);
         let mut last_tick_procs_should_be_stopped = false;
         loop {
@@ -231,6 +231,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                 );
                 if let Ok(duration) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
                     LAST_CLIENT_CONNECT_TIME_EPOCH_S.store(duration.as_secs(), std::sync::atomic::Ordering::Relaxed);
+                    if let Ok(mut write_guard) = ipv6_movable_shareable_procs.write() {
+                        write_guard.set_procs_should_be_stopped(false);
+                    }
                 }
                 channel.execute(server.serve()).for_each(spawn)
             })
@@ -259,6 +262,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                         );
                         if let Ok(duration) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
                             LAST_CLIENT_CONNECT_TIME_EPOCH_S.store(duration.as_secs(), std::sync::atomic::Ordering::Relaxed);
+                            if let Ok(mut write_guard) = shareable_procs.write() {
+                                write_guard.set_procs_should_be_stopped(false);
+                            }
                         }
                         channel.execute(server.serve()).for_each(spawn)
                     })
