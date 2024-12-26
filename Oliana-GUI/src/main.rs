@@ -175,9 +175,9 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .add_plugins(TextInputPlugin)
     .add_plugins(ScrollViewPlugin)
 
-    .add_event::<OllamaIsReadyToProcessEvent>()
-    .add_event::<PromptToOllamaEvent>()
-    .add_event::<ResponseFromOllamaEvent>()
+    .add_event::<ReadyToProcessEvent>()
+    .add_event::<PromptToAI>()
+    .add_event::<ResponseFromAI>()
 
     .insert_resource((*cli_args).clone()) // Accept a Ref<crate::cli::Args> in your system's function to read cli args in the UI
     //.insert_resource(OllamaResource::default()) // Accept a Ref<crate::gui::OllamaResource> in your system's function to touch the Ollama stuff
@@ -188,13 +188,12 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
             make_visible,
         ),
     )
-    .add_systems(Startup, (setup,) )
-    //.add_systems(Startup, (setup, setup_ollama) )
+    .add_systems(Startup, (setup, setup_ollama) )
     .add_systems(Update, focus.before(TextInputSystem))
     .add_systems(Update, text_listener.after(TextInputSystem))
     .add_systems(Update, read_ollama_ready_events)
     .add_systems(Update, read_ollama_response_events)
-    //.add_systems(Update, read_ollama_prompt_events)
+    .add_systems(Update, read_ollama_prompt_events)
     .add_systems(Update, reset_scroll) // TODO move this down/make it accessible someplace
 
    .run();
@@ -259,7 +258,7 @@ fn setup(mut commands: Commands) {
             ));
         });
 
-    // Text with one section; OllamaReplyText allows us to refer to the TextBundle?
+    // Text with one section; LLM_ReplyText allows us to refer to the TextBundle?
     /*commands.spawn((
         // Create a TextBundle that has a Text with a single section.
         TextBundle::from_section(
@@ -282,7 +281,7 @@ fn setup(mut commands: Commands) {
             bottom: Val::Px(52.0),
             ..default()
         }),
-        OllamaReplyText,
+        LLM_ReplyText,
     ));*/
 
     commands.spawn((
@@ -331,7 +330,7 @@ fn setup(mut commands: Commands) {
                 padding: UiRect::all(Val::Px(4.0)),
                 ..default()
             }),
-            OllamaReplyText,
+            LLM_ReplyText,
             ScrollableContent::default(),
         ));
     });
@@ -358,15 +357,15 @@ fn focus(
     }
 }
 
-fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer: EventWriter<PromptToOllamaEvent>,) {
+fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer: EventWriter<PromptToAI>,) {
     for event in events.read() {
         info!("{:?} submitted: {}", event.entity, event.value);
-        event_writer.send(PromptToOllamaEvent(event.value.clone()));
+        event_writer.send(PromptToAI("text".into(), event.value.clone()));
     }
 }
 
 fn read_ollama_ready_events(
-    mut event_reader: EventReader<OllamaIsReadyToProcessEvent>,
+    mut event_reader: EventReader<ReadyToProcessEvent>,
 ) {
     for ev in event_reader.read() {
         eprintln!("Event {:?} recieved!", ev);
@@ -374,8 +373,8 @@ fn read_ollama_ready_events(
 }
 
 fn read_ollama_response_events(
-    mut event_reader: EventReader<ResponseFromOllamaEvent>,
-    mut query: Query<&mut Text, With<OllamaReplyText>>
+    mut event_reader: EventReader<ResponseFromAI>,
+    mut query: Query<&mut Text, With<LLM_ReplyText>>
 ) {
     for ev in event_reader.read() {
         eprintln!("Event {:?} recieved!", ev);
@@ -394,41 +393,29 @@ fn read_ollama_response_events(
         }
     }
 }
-/*
+
 fn read_ollama_prompt_events(
     mut commands: Commands,
-    mut event_reader: EventReader<PromptToOllamaEvent>,
-    // mut event_writer: EventWriter<ResponseFromOllamaEvent>,
-    cli_args: Res<crate::cli::Args>,
-    mut ollama_resource: ResMut<crate::gui::OllamaResource>,
+    mut event_reader: EventReader<PromptToAI>,
+    // mut event_writer: EventWriter<ResponseFromAI>,
 ) {
-    use std::iter::Iterator;
-    use futures_util::StreamExt;
-
-    let arc_to_ollama_rwlock = ollama_resource.into_inner().ollama_inst.clone();
-
-    let desired_model_name = cli_args.ollama_model_name.clone().unwrap_or("qwen2.5:7b".to_string());
 
     for ev in event_reader.read() {
         let ev_txt = ev.0.to_string();
         eprintln!("Passing this prompt to Ollama: {:?}", ev.0);
 
-        let closure_arc_to_ollama_rwlock = arc_to_ollama_rwlock.clone();
-        let closure_owned_desired_model_name = desired_model_name.to_string();
-
         commands.spawn_task(|| async move {
-            let ollama_resource_readlock = poll_for_read_lock(&closure_arc_to_ollama_rwlock, 100, 50);
 
-            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( CLEAR_TOKEN.to_string() ));
+            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
             if let Err(e) = r {
                 eprintln!("[ read_ollama_prompt_events ] {:?}", e);
             }
 
-            match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new(closure_owned_desired_model_name, ev_txt)).await {
+            /*match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new(closure_owned_desired_model_name, ev_txt)).await {
                 Ok(mut reply_stream) => {
                     while let Some(Ok(several_responses)) = reply_stream.next().await {
                         for response in several_responses.iter() {
-                            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent( response.response.to_string() ));
+                            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), response.response.to_string() ));
                             if let Err(e) = r {
                                 eprintln!("[ read_ollama_prompt_events ] {:?}", e);
                             }
@@ -437,18 +424,17 @@ fn read_ollama_prompt_events(
                 }
                 Err(e) => {
                     eprintln!("e = {:?}", e);
-                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromOllamaEvent(format!("{:?}", e)));
+                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), format!("{:?}", e)));
                     if let Err(e) = r {
                         eprintln!("[ read_ollama_prompt_events ] {:?}", e);
                     }
                 }
-            }
+            }*/
 
             Ok(())
         });
     }
 }
-*/
 
 fn poll_for_write_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, num_retries: usize, retry_delay_s: u64) -> std::sync::RwLockWriteGuard<T> {
     let mut remaining_polls = num_retries;
@@ -490,59 +476,44 @@ fn poll_for_read_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, 
     panic!("[ poll_for_write_lock ] Timed out waiting for a lock!")
 }
 
-/*
-fn setup_ollama(mut commands: Commands, mut ollama_resource: ResMut<crate::gui::OllamaResource>, cli_args: Res<crate::cli::Args>, mut ev_ollama_ready: EventWriter<OllamaIsReadyToProcessEvent>) {
+
+fn setup_ollama(mut commands: Commands, mut ev_ollama_ready: EventWriter<ReadyToProcessEvent>) {
 
     // The write lock is NOT dropped here, it is MOVED into the async context below.
-    let owned_cli_args: crate::cli::Args = cli_args.clone();
-    let arc_to_ollama_rwlock = ollama_resource.into_inner().ollama_inst.clone();
-    let desired_model_name = owned_cli_args.ollama_model_name.clone().unwrap_or("qwen2.5:7b".to_string());
-
-    eprintln!("desired_model_name = {:?}", &desired_model_name);
 
     commands.spawn_task(|| async move {
 
-        let mut ollama_resource_writelock = poll_for_write_lock(&arc_to_ollama_rwlock, 100, 50);
-
-        match crate::ai::init_ollama_with_model_pulled(&owned_cli_args, &desired_model_name).await {
-            Ok(ollama_inst) => {
-                *ollama_resource_writelock = ollama_inst;
-            }
-            Err(e) => {
-                eprintln!("[ setup_ollama ] e = {:?}", e);
-            }
-        }
-
-        // std::thread::sleep(std::time::Duration::from_millis(3500)); // Haha yeah we suck, but this is a good knee-jerk measurement of ^^ lotsa work upstairs
+        std::thread::sleep(std::time::Duration::from_millis(3500)); // Haha yeah we suck, but this is a good knee-jerk measurement of ^^ lotsa work upstairs
 
         Ok(())
     })
     .add(|w: &mut World| {
-        w.send_event(OllamaIsReadyToProcessEvent());
+        w.send_event(ReadyToProcessEvent());
     });
 }
 
 
 
-#[derive(Debug, Clone, Default, bevy::ecs::system::Resource)]
+/*#[derive(Debug, Clone, Default, bevy::ecs::system::Resource)]
 pub struct OllamaResource {
     pub ollama_inst: std::sync::Arc<std::sync::RwLock<ollama_rs::Ollama>>,
-}
-*/
+}*/
 
 #[derive(Debug, bevy::ecs::event::Event)]
-pub struct OllamaIsReadyToProcessEvent();
+pub struct ReadyToProcessEvent();
 
+// first string is type of prompt, second string is prompt text; TODO possible args to add configs that go to oliana_text and oliana_images
 #[derive(Debug, bevy::ecs::event::Event)]
-pub struct PromptToOllamaEvent(String);
+pub struct PromptToAI(String, String);
 
+// first string is type of prompt, second string is prompt reply. if "text" second string is simply the string, if "image" the second string is a file path to a .png.
 #[derive(Debug, bevy::ecs::event::Event)]
-pub struct ResponseFromOllamaEvent(String);
+pub struct ResponseFromAI(String, String);
 
 
 // A unit struct to help identify the Ollama Reply UI component, since there may be many Text components
 #[derive(Component)]
-struct OllamaReplyText;
+struct LLM_ReplyText;
 
 
 
