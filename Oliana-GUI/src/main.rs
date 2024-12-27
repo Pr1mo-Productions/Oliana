@@ -477,15 +477,15 @@ fn determine_if_we_have_local_gpu(mut commands: Commands) {
             eprintln!("{}:{} {:?}", file!(), line!(), e);
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(1300)); // Allow one 1/2 tick for file to be cleared
+        tokio::time::sleep(std::time::Duration::from_millis(1300)).await; // Allow one 1/2 tick for file to be cleared
 
         let t0_restarts = tally_server_subproc_restarts();
 
-        std::thread::sleep(std::time::Duration::from_millis(3 * 2600));
+        tokio::time::sleep(std::time::Duration::from_millis(3 * 2600)).await;
 
         let t1_restarts = tally_server_subproc_restarts();
 
-        std::thread::sleep(std::time::Duration::from_millis(3 * 2600));
+        tokio::time::sleep(std::time::Duration::from_millis(3 * 2600)).await;
 
         let t2_restarts = tally_server_subproc_restarts();
 
