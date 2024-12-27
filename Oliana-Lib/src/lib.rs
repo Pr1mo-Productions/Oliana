@@ -6,3 +6,6 @@ pub mod files;
 pub mod misc;
 pub mod launchers;
 pub mod build_meta;
+
+pub use nix;
+

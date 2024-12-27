@@ -175,7 +175,6 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .add_plugins(TextInputPlugin)
     .add_plugins(ScrollViewPlugin)
 
-    .add_event::<ReadyToProcessEvent>()
     .add_event::<PromptToAI>()
     .add_event::<ResponseFromAI>()
 
@@ -188,10 +187,9 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
             make_visible,
         ),
     )
-    .add_systems(Startup, (setup, setup_ollama) )
+    .add_systems(Startup, (setup, determine_if_we_have_local_gpu) )
     .add_systems(Update, focus.before(TextInputSystem))
     .add_systems(Update, text_listener.after(TextInputSystem))
-    .add_systems(Update, read_ollama_ready_events)
     .add_systems(Update, read_ollama_response_events)
     .add_systems(Update, read_ollama_prompt_events)
     .add_systems(Update, reset_scroll) // TODO move this down/make it accessible someplace
@@ -364,13 +362,6 @@ fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer
     }
 }
 
-fn read_ollama_ready_events(
-    mut event_reader: EventReader<ReadyToProcessEvent>,
-) {
-    for ev in event_reader.read() {
-        eprintln!("Event {:?} recieved!", ev);
-    }
-}
 
 fn read_ollama_response_events(
     mut event_reader: EventReader<ResponseFromAI>,
@@ -477,21 +468,58 @@ fn poll_for_read_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, 
 }
 
 
-fn setup_ollama(mut commands: Commands, mut ev_ollama_ready: EventWriter<ReadyToProcessEvent>) {
-
-    // The write lock is NOT dropped here, it is MOVED into the async context below.
+fn determine_if_we_have_local_gpu(mut commands: Commands) {
 
     commands.spawn_task(|| async move {
 
-        std::thread::sleep(std::time::Duration::from_millis(3500)); // Haha yeah we suck, but this is a good knee-jerk measurement of ^^ lotsa work upstairs
+        let sentinel_val = std::collections::HashMap::<String, u32>::new();
+        if let Err(e) = oliana_lib::files::set_cache_file_server_proc_restart_data(&sentinel_val) {
+            eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(1300)); // Allow one 1/2 tick for file to be cleared
+
+        let t0_restarts = tally_server_subproc_restarts();
+
+        std::thread::sleep(std::time::Duration::from_millis(3 * 2600));
+
+        let t1_restarts = tally_server_subproc_restarts();
+
+        std::thread::sleep(std::time::Duration::from_millis(3 * 2600));
+
+        let t2_restarts = tally_server_subproc_restarts();
+
+
+        eprintln!("t0_restarts={t0_restarts} t1_restarts={t1_restarts} t2_restarts={t2_restarts}");
+
+        if t1_restarts > t0_restarts {
+
+        }
+
 
         Ok(())
-    })
-    .add(|w: &mut World| {
-        w.send_event(ReadyToProcessEvent());
     });
+
+/*    .add(|w: &mut World| {
+        w.send_event(ReadyToProcessOnServerEvent("".into()));
+    });
+*/
 }
 
+fn tally_server_subproc_restarts() -> usize {
+    let mut num_restarts: usize = 0;
+    match oliana_lib::files::get_cache_file_server_proc_restart_data() {
+        Ok(data) => {
+            for (_k,v) in data.into_iter() {
+                num_restarts += v as usize;
+            }
+        }
+        Err(e) => {
+            eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+    }
+    return num_restarts;
+}
 
 
 /*#[derive(Debug, Clone, Default, bevy::ecs::system::Resource)]
@@ -499,8 +527,6 @@ pub struct OllamaResource {
     pub ollama_inst: std::sync::Arc<std::sync::RwLock<ollama_rs::Ollama>>,
 }*/
 
-#[derive(Debug, bevy::ecs::event::Event)]
-pub struct ReadyToProcessEvent();
 
 // first string is type of prompt, second string is prompt text; TODO possible args to add configs that go to oliana_text and oliana_images
 #[derive(Debug, bevy::ecs::event::Event)]

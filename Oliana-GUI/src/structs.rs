@@ -33,6 +33,9 @@ pub struct Globals {
     pub server_proc: Option<std::process::Child>,
     pub expected_bin_directory: std::path::PathBuf,
     pub track_proc_dir: std::path::PathBuf,
+
+    // Things which want to change servers can modify this + everything creating new connections to a server should reference this global
+    pub server_url: String,
 }
 
 impl Globals {
@@ -41,6 +44,7 @@ impl Globals {
             server_proc: None,
             expected_bin_directory: std::path::PathBuf::new(),
             track_proc_dir: std::path::PathBuf::new(),
+            server_url: std::env::var("OLIANA_SERVER").unwrap_or_else(|_|"127.0.0.1:9050".into()) // Users may set OLIANA_SERVER=<host>:<port> to default to a different server
         }
     }
 
@@ -65,22 +69,49 @@ impl Globals {
         self.expected_bin_directory = expected_bin_directory.clone();
         self.track_proc_dir = track_proc_dir.clone();
 
-        let oliana_server_bin = oliana_lib::files::find_newest_mtime_bin_under_folder(&expected_bin_directory, "oliana_server")?;
+        let mut should_spawn_server = true;
+        if let Ok(value) = std::env::var("RUN_LOCAL_SERVER") {
+            if value.contains("f") || value.contains("F") || value.contains("0") {
+                should_spawn_server = false;
+            }
+        }
 
-        eprintln!("OLIANA_BIN_DIR={:?}", &expected_bin_directory);
-        eprintln!("OLIANA_TRACKED_PROC_DIR={:?}", &track_proc_dir);
-        eprintln!("Spawning {:?}", &oliana_server_bin);
+        if should_spawn_server {
+            let oliana_server_bin = oliana_lib::files::find_newest_mtime_bin_under_folder(&expected_bin_directory, "oliana_server")?;
 
-        let child = std::process::Command::new(&oliana_server_bin)
-                        //.args(&[])
-                        .env("OLIANA_TRACKED_PROC_DIR", track_proc_dir)
-                        .env("OLIANA_BIN_DIR", expected_bin_directory)
-                        .spawn()?;
+            eprintln!("OLIANA_BIN_DIR={:?}", &expected_bin_directory);
+            eprintln!("OLIANA_TRACKED_PROC_DIR={:?}", &track_proc_dir);
+            eprintln!("Spawning {:?}", &oliana_server_bin);
 
-        self.server_proc = Some(child);
+            let child = std::process::Command::new(&oliana_server_bin)
+                            //.args(&[])
+                            .env("OLIANA_TRACKED_PROC_DIR", track_proc_dir)
+                            .env("OLIANA_BIN_DIR", expected_bin_directory)
+                            .spawn()?;
+
+            self.server_proc = Some(child);
+        }
 
         Ok(())
     }
+
+    pub fn kill_local_server(&mut self) {
+        if let Some(server_proc) = &mut self.server_proc {
+            #[cfg(target_os = "linux")]
+            {
+                if let Err(e) = oliana_lib::nix::sys::signal::kill(oliana_lib::nix::unistd::Pid::from_raw(server_proc.id() as i32), oliana_lib::nix::sys::signal::Signal::SIGTERM) {
+                  eprintln!("{}:{} {:?}", file!(), line!(), e);
+                }
+                // Give it a moment
+                std::thread::sleep(std::time::Duration::from_millis(250));
+            }
+            // Just kill anything that remains
+            if let Err(e) = server_proc.kill() {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+            }
+        }
+    }
+
 }
 
 
