@@ -43,10 +43,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
   rt.block_on(async {
     if let Err(e) = main_async(&cli_args).await {
       eprintln!("[ main_async ] {}", e);
-      cleanup_and_exit(1);
+      cleanup_child_procs();
+      std::process::exit(1);
     }
   });
-  cleanup_and_exit(0);
+  cleanup_child_procs();
+  std::process::exit(0);
   // Ok(())
 }
 
@@ -67,7 +69,7 @@ pub fn poll_until_exit_or_elapsed(sys: &mut sysinfo::System, pid: usize, ms_to_p
     }
 }
 
-pub fn cleanup_and_exit(code: i32) -> ! {
+pub fn cleanup_child_procs() {
   if let Ok(mut globals_wl) = GLOBALS.try_write() {
 
     let mut sys = sysinfo::System::new_all();
@@ -129,8 +131,6 @@ pub fn cleanup_and_exit(code: i32) -> ! {
     }
 
   }
-
-  std::process::exit(code)
 }
 
 pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -181,12 +181,7 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .insert_resource((*cli_args).clone()) // Accept a Ref<crate::cli::Args> in your system's function to read cli args in the UI
     //.insert_resource(OllamaResource::default()) // Accept a Ref<crate::gui::OllamaResource> in your system's function to touch the Ollama stuff
 
-    .add_systems(
-        Update,
-        (
-            make_visible,
-        ),
-    )
+    .add_systems(Update, (make_visible, render_server_url_in_use) )
     .add_systems(Startup, (setup, determine_if_we_have_local_gpu) )
     .add_systems(Update, focus.before(TextInputSystem))
     .add_systems(Update, text_listener.after(TextInputSystem))
@@ -206,6 +201,15 @@ fn make_visible(mut window: Query<&mut Window>, frames: Res<FrameCount>) {
         // Alternatively, you could toggle the visibility in Startup.
         // It will work, but it will have one white frame before it starts rendering
         window.single_mut().visible = true;
+    }
+}
+
+fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCount>) {
+    if frames.0 % 30 == 0 {
+        if let Ok(globals_rl) = GLOBALS.try_read() {
+            let server_url: String = globals_rl.server_url.clone();
+
+        }
     }
 }
 
@@ -281,6 +285,47 @@ fn setup(mut commands: Commands) {
         }),
         LLM_ReplyText,
     ));*/
+
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(4.0),
+                left: Val::Px(4.0),
+                right: Val::Px(4.0),
+                bottom: Val::Px(56.0),
+                align_items: AlignItems::Start, // Start here means "Top"
+                justify_content: JustifyContent::End, // Start here means "Left"
+                padding: UiRect::all(Val::Px(4.0)),
+                ..default()
+            },
+            ..default()
+        },
+    ))
+    .with_children(|scroll_area| {
+        scroll_area.spawn((
+            TextBundle::from_section(
+                // Accepts a `String` or any type that converts into a `String`, such as `&str`
+                "127.0.0.1:9050",
+                TextStyle {
+                    // This font is loaded and will be used instead of the default font.
+                    // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 18.0,
+                    ..default()
+                },
+            ) // Set the justification of the Text
+            .with_text_justify(JustifyText::Right)
+            // Set the style of the TextBundle itself.
+            .with_style(Style {
+                width: Val::Px(180.0),
+                margin: UiRect::all(Val::Px(4.0)),
+                //border: UiRect::all(Val::Px(5.0)),
+                padding: UiRect::all(Val::Px(4.0)),
+                ..default()
+            }),
+            Server_URL,
+        ));
+    });
 
     commands.spawn((
         NodeBundle {
@@ -485,15 +530,22 @@ fn determine_if_we_have_local_gpu(mut commands: Commands) {
 
         let t1_restarts = tally_server_subproc_restarts();
 
-        tokio::time::sleep(std::time::Duration::from_millis(3 * 2600)).await;
-
-        let t2_restarts = tally_server_subproc_restarts();
-
-
-        eprintln!("t0_restarts={t0_restarts} t1_restarts={t1_restarts} t2_restarts={t2_restarts}");
+        eprintln!("t0_restarts={t0_restarts} t1_restarts={t1_restarts}");
 
         if t1_restarts > t0_restarts {
-
+            if let Ok(mut globals_wl) = GLOBALS.try_write() {
+                let available_server = scan_for_an_open_tcp_port_at(&[
+                    "127.0.0.1:8011",
+                    // TODO expand list, read an env var, etc.
+                ]);
+                if available_server.len() > 0 {
+                    globals_wl.server_url = available_server;
+                    eprintln!("Connecting to server {} because our local server sub-processes are not starting up!", &globals_wl.server_url);
+                }
+            }
+            // After releasing the write lock we can safely tell cleanup_child_procs() to clean-up the server
+            cleanup_child_procs();
+            eprintln!("Done stopping local tools, now using remote ones if a server was available.");
         }
 
 
@@ -504,6 +556,21 @@ fn determine_if_we_have_local_gpu(mut commands: Commands) {
         w.send_event(ReadyToProcessOnServerEvent("".into()));
     });
 */
+}
+
+fn scan_for_an_open_tcp_port_at(servers: &[&str]) -> String {
+    let mut picked = String::new();
+    for server in servers {
+        match std::net::TcpStream::connect(server) {
+            Ok(_conn) => {
+                picked = server.to_string();
+            }
+            Err(e) => {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+            }
+        }
+    }
+    return picked;
 }
 
 fn tally_server_subproc_restarts() -> usize {
@@ -540,6 +607,10 @@ pub struct ResponseFromAI(String, String);
 // A unit struct to help identify the Ollama Reply UI component, since there may be many Text components
 #[derive(Component)]
 struct LLM_ReplyText;
+
+// A unit struct to help identify the server URL text in the upper-right of the UI
+#[derive(Component)]
+struct Server_URL;
 
 
 
