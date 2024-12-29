@@ -100,6 +100,7 @@ impl Globals {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn kill_local_server(&mut self) {
         if let Some(server_proc) = &mut self.server_proc {
             #[cfg(target_os = "linux")]

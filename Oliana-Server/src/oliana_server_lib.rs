@@ -205,7 +205,8 @@ impl Oliana for OlianaServer {
         let mut remaining_polls_before_give_up: usize = 3 * 10; // 3 seconds worth at 10 polls/sec
         loop {
             let next_byte_i = self.read_generate_text_next_byte_i();
-            if let Ok(file_bytes) = tokio::fs::read(&response_txt_file).await {
+            match tokio::fs::read(&response_txt_file).await {
+               Ok(file_bytes) => {
                 if file_bytes.len() < next_byte_i {
                     return None; // Somehow the file was truncated! .len() should always grow; it is allowed to be == next_byte_i.
                 }
@@ -225,7 +226,15 @@ impl Oliana for OlianaServer {
                     if the_string.len() > 0 {
                         return Some(the_string.to_string());
                     }
+                    else {
+                        remaining_polls_before_give_up -= 1; // Count a stale read as an error
+                    }
                 }
+              }
+              Err(e) => {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+                remaining_polls_before_give_up -= 1;
+              }
             }
             if response_done_file.exists() || remaining_polls_before_give_up < 1 { // What we just read must be the remaining bytes, because .done is created AFTER a write to .txt
                 break;
