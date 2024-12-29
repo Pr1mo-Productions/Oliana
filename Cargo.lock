@@ -2998,7 +2998,7 @@ dependencies = [
  "vec_map",
  "wasm-bindgen",
  "web-sys",
- "windows 0.57.0",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -4889,6 +4889,7 @@ dependencies = [
  "num_cpus",
  "oliana_lib",
  "pci-info",
+ "pciid-parser",
  "serde",
  "serde_json",
  "tarpc",
@@ -5102,6 +5103,12 @@ dependencies = [
  "windows 0.56.0",
  "wmi",
 ]
+
+[[package]]
+name = "pciid-parser"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e889f5dad24e8b842a0417e1df0fa250f4e300d1eb88b81d48a9db5bfff6e035"
 
 [[package]]
 name = "percent-encoding"

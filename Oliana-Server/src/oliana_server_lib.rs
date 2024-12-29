@@ -319,13 +319,24 @@ impl Oliana for OlianaServer {
         let mut result = vec![];
         match pci_info::PciInfo::enumerate_pci() {
             Ok(pcie_devices) => {
+                let pcie_database: Option<pciid_parser::Database> = if let Ok(db) = pciid_parser::Database::read() { Some(db) } else { None };
                 for device in pcie_devices {
                     match device {
                         Ok(device) => {
                             match device.device_iface() {
                                 Ok(iface) => {
                                     if iface == pci_info::pci_enums::PciDeviceInterfaceFunc::DisplayController_VgaCompatible_Vga { // It's a GPU!
-                                        result.push(format!("{:?}", device));
+                                        if let Some(ref db) = pcie_database {
+                                            let vendor_id = format!("{:x}", device.vendor_id());
+                                            let device_id = format!("{:x}", device.device_id());
+                                            let info = db.get_device_info(
+                                                vendor_id.as_str(), device_id.as_str(), "", ""
+                                            );
+                                            result.push(format!("{:?}", info));
+                                        }
+                                        else {
+                                            result.push(format!("[ NO PCI DATABASE ] {:?}", device));
+                                        }
                                     }
                                 }
                                 Err(e) => {

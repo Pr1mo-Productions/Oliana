@@ -21,6 +21,8 @@ time ./target/release/oliana_client image --server-url '127.0.0.1:8011' -p "A sk
 # W/o the --output argument this streams text to stdout
 time ./target/release/oliana_client text --server-url '127.0.0.1:8011' --system-prompt "You are a snappy flight attendant who tells terrible pun jokes." -p "Hello, my flight's been canceled, can you help me book another?"
 
+# Get attached HW
+./target/release/oliana_client server-pci-hardware-names --server-url '127.0.0.1:8011'
 
 ```
 
