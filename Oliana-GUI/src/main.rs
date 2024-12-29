@@ -375,7 +375,7 @@ fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCou
         let server_pcie_devices = ask_server_for_pci_devices(); // ask_server_for_pci_devices needs try_write() and doing that within a try_read() always fails
         if let Ok(globals_rl) = GLOBALS.try_read() {
             let server_url: String = globals_rl.server_url.clone();
-            let mut server_txt = format!("{}\n", &server_url);
+            let mut server_txt = format!("Server: {}\n", &server_url);
             let num_devices = server_pcie_devices.len();
             for (i, device_name) in server_pcie_devices.iter().enumerate() {
                 server_txt.push_str(&format!("({}) {}", i, &device_name));
@@ -405,25 +405,30 @@ fn ask_server_for_pci_devices() -> Vec<String> {
         }
     }
     if server_url.len() > 0 {
+        // We WILL NOT return the reply immediately; instead we tell the tokio thread pool to make the service request & we write to GLOBALS.server_pcie_devices and allow future ticks to read into the GUI
+        let mut maybe_tokio_rt: Option<tokio::runtime::Handle> = None;
         if let Ok(mut globals_wl) = GLOBALS.try_write() {
-            if let Some(tokio_rt) = &globals_wl.tokio_rt {
-                tokio_rt.block_on(async {
-                    if let Err(e) = ask_server_for_pci_devices_async(&server_url, &mut pcie_devices).await {
-                        eprintln!("{}:{} {:?}", file!(), line!(), e);
-                    }
-                });
-            }
-            else {
-                eprintln!("{}:{} globals_wl.tokio_rt is None!", file!(), line!() );
-            }
-            if pcie_devices.len() > 0 {
-                let server_url_clone = globals_wl.server_url.clone();
-                globals_wl.server_pcie_devices.insert(server_url_clone, pcie_devices.clone() );
-            }
+            maybe_tokio_rt = globals_wl.tokio_rt.clone();
         }
         else {
             eprintln!("{}:{} GLOBALS.try_write() cannot be aquired!", file!(), line!() );
         }
+        if let Some(tokio_rt) = maybe_tokio_rt {
+            // This work happens off the GUI thread and eventually globals_wl.server_pcie_devices will be filled
+            tokio_rt.spawn(async move {
+                let mut pcie_devices = vec![];
+                if let Err(e) = ask_server_for_pci_devices_async(&server_url, &mut pcie_devices).await {
+                    eprintln!("{}:{} {:?}", file!(), line!(), e);
+                }
+                if pcie_devices.len() > 0 {
+                    if let Ok(mut globals_wl) = GLOBALS.try_write() {
+                        let server_url_clone = globals_wl.server_url.clone();
+                        globals_wl.server_pcie_devices.insert(server_url_clone, pcie_devices.clone() );
+                    }
+                }
+            });
+        }
+
     }
     return pcie_devices;
 }
@@ -593,19 +598,30 @@ fn determine_if_we_have_local_gpu(mut commands: Commands) {
         eprintln!("t0_restarts={t0_restarts} t1_restarts={t1_restarts}");
 
         if t1_restarts > t0_restarts {
+            let mut maybe_tokio_rt: Option<tokio::runtime::Handle> = None;
             if let Ok(mut globals_wl) = GLOBALS.try_write() {
-                let available_server = scan_for_an_open_tcp_port_at(&[
-                    "127.0.0.1:8011",
-                    // TODO expand list, read an env var, etc.
-                ]);
-                if available_server.len() > 0 {
-                    globals_wl.server_url = available_server;
-                    eprintln!("Connecting to server {} because our local server sub-processes are not starting up!", &globals_wl.server_url);
-                }
+                maybe_tokio_rt = globals_wl.tokio_rt.clone();
             }
             // After releasing the write lock we can safely tell cleanup_child_procs() to clean-up the server
-            cleanup_child_procs();
-            eprintln!("Done stopping local tools, now using remote ones if a server was available.");
+            if let Some(tokio_rt) = maybe_tokio_rt {
+                // Because network + process killing is slow we send it to a background tokio thread
+                tokio_rt.spawn(async move {
+                    if let Ok(mut globals_wl) = GLOBALS.try_write() {
+                        let available_server = scan_for_an_open_tcp_port_at(&[
+                            "127.0.0.1:8011",
+                            // TODO expand list, read an env var, etc.
+                        ]);
+                        if available_server.len() > 0 {
+                            globals_wl.server_url = available_server;
+                            eprintln!("Connecting to server {} because our local server sub-processes are not starting up!", &globals_wl.server_url);
+                        }
+                    }
+                    // GLOBALS.try_write has been released, so cleanup_child_procs can grab it
+                    cleanup_child_procs();
+                    eprintln!("Done stopping local tools, now using remote ones if a server was available.");
+
+                });
+            }
         }
 
 
