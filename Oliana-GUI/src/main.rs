@@ -559,6 +559,7 @@ fn read_ai_prompt_events(
                                     if remaining_allowed_errs < 1 {
                                         break;
                                     }
+                                    eprintln!("BEFORE tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await");
                                     match tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
                                         Ok(Ok(Some(next_token))) => {
                                           eprint!("{}", &next_token);
@@ -579,6 +580,7 @@ fn read_ai_prompt_events(
                                           eprintln!("{}:{} {:?}", file!(), line!(), timeout_err);
                                         }
                                     }
+                                    eprintln!("AFTER tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await remaining_allowed_errs={remaining_allowed_errs}");
                                 }
                                 eprintln!("Done with client.generate_text_next_token!");
                             }
