@@ -196,7 +196,7 @@ impl Oliana for OlianaServer {
         let response_done_file = self.get_current_text_output_done_path();
 
         // Wait until the file's size is > self.read_generate_text_next_byte_i()
-        let mut remaining_polls_before_give_up: usize = 12 * 10; // 12 seconds worth at 10 polls/sec
+        let mut remaining_polls_before_give_up: usize = 3 * 10; // 3 seconds worth at 10 polls/sec
         loop {
             let next_byte_i = self.read_generate_text_next_byte_i();
             if let Ok(file_bytes) = tokio::fs::read(&response_txt_file).await {
