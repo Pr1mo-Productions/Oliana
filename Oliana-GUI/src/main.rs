@@ -292,7 +292,7 @@ fn setup(mut commands: Commands) {
             .with_text_justify(JustifyText::Right)
             // Set the style of the TextBundle itself.
             .with_style(Style {
-                width: Val::Px(400.0),
+                width: Val::Px(600.0),
                 margin: UiRect::all(Val::Px(2.0)),
                 //border: UiRect::all(Val::Px(5.0)),
                 padding: UiRect::all(Val::Px(2.0)),
