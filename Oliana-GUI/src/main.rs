@@ -548,6 +548,7 @@ fn read_ai_prompt_events(
                                       }
                                     }
                                     eprintln!("");
+                                    eprintln!("DONE with client.generate_text_next_token");
                                 },
                                 Err(e) => {
                                     let msg = format!("{}:{} {:?}", file!(), line!(), e);

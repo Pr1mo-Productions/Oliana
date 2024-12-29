@@ -189,8 +189,14 @@ impl Oliana for OlianaServer {
         // Right now we just wait for get_current_text_output_txt_path() to be created + return one giant chunk, but eventually Oliana-Text should iteratively update the file
         // so we can poll & return a streamed response.
         let response_txt_file = self.get_current_text_output_txt_path();
-        while ! response_txt_file.exists() {
+
+        let mut remaining_polls_before_give_up: usize = 3 * 10; // 3 seconds worth at 10 polls/sec
+        while !response_txt_file.exists() && remaining_polls_before_give_up > 0 {
             tokio::time::sleep( tokio::time::Duration::from_millis(100) ).await;
+            remaining_polls_before_give_up -= 1;
+        }
+        if !response_txt_file.exists() {
+            return None;
         }
 
         let response_done_file = self.get_current_text_output_done_path();
