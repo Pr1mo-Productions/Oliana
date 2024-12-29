@@ -1,10 +1,14 @@
 
+#![allow(unused_imports, unused_mut, unused_variables, non_camel_case_types)]
+
 use bevy::{
     core::FrameCount,
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
     window::{CursorGrabMode, PresentMode, WindowLevel, WindowTheme},
 };
+
+use bevy::prelude::*;
 
 use bevy_simple_text_input::{
     TextInputBundle, TextInputInactive, TextInputPlugin, TextInputSystem, TextInputSubmitEvent
@@ -140,6 +144,11 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
         eprintln!("{}:{} {}", file!(), line!(), e);
     }
   }
+  tokio::task::spawn(async { // We want a runtime handle, but we also do not want to pin to this async thread as it will be used 100% by the Bevy engine below.
+    if let Ok(mut globals_wl) = GLOBALS.try_write() {
+        globals_wl.tokio_rt = Some( tokio::runtime::Handle::current() );
+    }
+  });
 
   App::new()
     .add_plugins(DefaultPlugins
@@ -151,7 +160,7 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
                     present_mode: PresentMode::AutoVsync,
                     window_theme: Some(WindowTheme::Dark),
                     enabled_buttons: bevy::window::EnabledButtons {
-                        maximize: false,
+                        // maximize: false,
                         ..Default::default()
                     },
                     // This will spawn an invisible window
@@ -204,15 +213,6 @@ fn make_visible(mut window: Query<&mut Window>, frames: Res<FrameCount>) {
     }
 }
 
-fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCount>) {
-    if frames.0 % 30 == 0 {
-        if let Ok(globals_rl) = GLOBALS.try_read() {
-            let server_url: String = globals_rl.server_url.clone();
-
-        }
-    }
-}
-
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
@@ -260,32 +260,6 @@ fn setup(mut commands: Commands) {
             ));
         });
 
-    // Text with one section; LLM_ReplyText allows us to refer to the TextBundle?
-    /*commands.spawn((
-        // Create a TextBundle that has a Text with a single section.
-        TextBundle::from_section(
-            // Accepts a `String` or any type that converts into a `String`, such as `&str`
-            "hello\nbevy!",
-            TextStyle {
-                // This font is loaded and will be used instead of the default font.
-                // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 30.0,
-                ..default()
-            },
-        ) // Set the justification of the Text
-        .with_text_justify(JustifyText::Left)
-        // Set the style of the TextBundle itself.
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(4.0),
-            left: Val::Px(4.0),
-            right: Val::Px(4.0),
-            bottom: Val::Px(52.0),
-            ..default()
-        }),
-        LLM_ReplyText,
-    ));*/
-
     commands.spawn((
         NodeBundle {
             style: Style {
@@ -296,31 +270,32 @@ fn setup(mut commands: Commands) {
                 bottom: Val::Px(56.0),
                 align_items: AlignItems::Start, // Start here means "Top"
                 justify_content: JustifyContent::End, // Start here means "Left"
-                padding: UiRect::all(Val::Px(4.0)),
+                padding: UiRect::all(Val::Px(2.0)),
                 ..default()
             },
+            z_index: ZIndex::Global(1000), // This ensures the text floats _above_ the LLM response text.
             ..default()
         },
     ))
-    .with_children(|scroll_area| {
-        scroll_area.spawn((
+    .with_children(|node_bundle| {
+        node_bundle.spawn((
             TextBundle::from_section(
                 // Accepts a `String` or any type that converts into a `String`, such as `&str`
                 "127.0.0.1:9050",
                 TextStyle {
                     // This font is loaded and will be used instead of the default font.
                     // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 18.0,
+                    font_size: 14.0,
                     ..default()
                 },
             ) // Set the justification of the Text
             .with_text_justify(JustifyText::Right)
             // Set the style of the TextBundle itself.
             .with_style(Style {
-                width: Val::Px(180.0),
-                margin: UiRect::all(Val::Px(4.0)),
+                width: Val::Px(400.0),
+                margin: UiRect::all(Val::Px(2.0)),
                 //border: UiRect::all(Val::Px(5.0)),
-                padding: UiRect::all(Val::Px(4.0)),
+                padding: UiRect::all(Val::Px(2.0)),
                 ..default()
             }),
             Server_URL,
@@ -379,6 +354,62 @@ fn setup(mut commands: Commands) {
     });
 
 
+}
+
+fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCount>, mut query: Query<&mut Text, With<Server_URL>>) {
+    if frames.0 % 24 == 0 {
+        let server_pcie_devices = ask_server_for_pci_devices(); // ask_server_for_pci_devices needs try_write() and doing that within a try_read() always fails
+        if let Ok(globals_rl) = GLOBALS.try_read() {
+            let server_url: String = globals_rl.server_url.clone();
+            let mut server_txt = format!("{}", &server_url);
+            for (i, device_name) in server_pcie_devices.iter().enumerate() {
+                server_txt.push_str("\n");
+                server_txt.push_str(&format!("({}) {}", i, &device_name));
+            }
+            for mut text in &mut query { // Append to existing content in support of a streaming design.
+                text.sections[0].value = server_txt.clone();
+            }
+        }
+    }
+}
+
+fn ask_server_for_pci_devices() -> Vec<String> {
+    let mut pcie_devices = vec![];
+    let mut server_url = String::new();
+    if let Ok(globals_rl) = GLOBALS.try_read() {
+        server_url.push_str(&globals_rl.server_url);
+    }
+    if server_url.len() > 0 {
+        if let Ok(globals_wl) = GLOBALS.try_write() {
+            if let Some(tokio_rt) = &globals_wl.tokio_rt {
+                tokio_rt.block_on(async {
+                    if let Err(e) = ask_server_for_pci_devices_async(&server_url, &mut pcie_devices).await {
+                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                    }
+                });
+            }
+            else {
+                eprintln!("{}:{} globals_wl.tokio_rt is None!", file!(), line!() );
+            }
+        }
+        else {
+            eprintln!("{}:{} GLOBALS.try_write() cannot be aquired!", file!(), line!() );
+        }
+    }
+    return pcie_devices;
+}
+
+async fn ask_server_for_pci_devices_async(server_url: &str, pcie_devices: &mut Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
+    transport.config_mut().max_frame_length(usize::MAX);
+
+    let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport.await?).spawn();
+
+    let mut hardware_names = client.fetch_pci_hw_device_names(tarpc::context::current()).await?;
+
+    pcie_devices.append(&mut hardware_names);
+
+    Ok(())
 }
 
 fn focus(

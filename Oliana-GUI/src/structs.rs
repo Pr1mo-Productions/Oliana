@@ -30,6 +30,8 @@ impl Args {
 
 
 pub struct Globals {
+    pub tokio_rt: Option<tokio::runtime::Handle>,
+
     pub server_proc: Option<std::process::Child>,
     pub expected_bin_directory: std::path::PathBuf,
     pub track_proc_dir: std::path::PathBuf,
@@ -41,6 +43,7 @@ pub struct Globals {
 impl Globals {
     pub fn new() -> Self {
         Self {
+            tokio_rt: None,
             server_proc: None,
             expected_bin_directory: std::path::PathBuf::new(),
             track_proc_dir: std::path::PathBuf::new(),

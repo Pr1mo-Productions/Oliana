@@ -22,6 +22,10 @@ bevy_simple_scroll_view = { version = "0.2" }
 lazy_static =  { version = "1" }
 sysinfo =      { version = "0.33" }
 
+tarpc =        { version = "0.35", features = ["tokio1", "tokio1", "tcp", "serde-transport-bincode"] }
+serde_json = { version = "1" }
+
+
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
 [target.'cfg(target_os = "linux")'.dependencies]
 # Graphics dependencies

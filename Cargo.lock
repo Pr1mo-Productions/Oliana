@@ -4847,7 +4847,9 @@ dependencies = [
  "rand",
  "rand_core",
  "serde",
+ "serde_json",
  "sysinfo 0.33.0",
+ "tarpc",
  "tokio",
 ]
 
