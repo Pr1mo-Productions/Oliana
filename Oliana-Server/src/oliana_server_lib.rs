@@ -332,7 +332,7 @@ impl Oliana for OlianaServer {
                                             let info = db.get_device_info(
                                                 vendor_id.as_str(), device_id.as_str(), "", ""
                                             );
-                                            result.push(format!("{:?}", info));
+                                            result.push(format!("{:?} {:?}", info.vendor_name.unwrap_or_else(|| "UNK".into()), info.device_name.unwrap_or_else(|| "UNK".into()) ));
                                         }
                                         else {
                                             result.push(format!("[ NO PCI DATABASE ] {:?}", device));
