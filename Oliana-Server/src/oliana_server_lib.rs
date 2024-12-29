@@ -21,6 +21,9 @@ pub trait Oliana {
     /// Waits until image has completed and returns result.
     async fn generate_image_get_result() -> Vec<u8>;
 
+   /// Reads PCI data from the host the server is running on & returns a list of hardware attached
+    async fn fetch_pci_hw_device_names() -> Vec<String>;
+
 }
 
 // This is the type that implements the generated World trait. It is the business logic
@@ -310,6 +313,30 @@ impl Oliana for OlianaServer {
         }
 
         return result_bytes;
+    }
+
+    async fn fetch_pci_hw_device_names(self, _: tarpc::context::Context) -> Vec<String> {
+        let mut result = vec![];
+        match pci_info::PciInfo::enumerate_pci() {
+            Ok(pcie_devices) => {
+                for device in pcie_devices {
+                    match device {
+                        Ok(device) => {
+                            result.push(format!("{:?}", device));
+                        }
+                        Err(e) => {
+                            eprintln!("{}:{} {:?}", file!(), line!(), e);
+                            result.push(format!("{:?}", e));
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+                result.push(format!("{:?}", e));
+            }
+        }
+        return result;
     }
 }
 

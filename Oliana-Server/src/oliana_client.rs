@@ -77,6 +77,16 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     }
 
   }
+  else if args.command == Command::ServerPCIHardwareNames {
+    let hardware_names = client.fetch_pci_hw_device_names(tarpc::context::current()).await?;
+    for name in hardware_names.iter() {
+      println!("{name}");
+    }
+
+  }
+  else {
+    eprintln!("Unknown command {:?}", args.command);
+  }
 
   Ok(())
 }
@@ -84,6 +94,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
 pub enum Command {
   Text, Image,
+  ServerPCIHardwareNames,
   Help
 }
 

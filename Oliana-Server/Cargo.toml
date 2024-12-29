@@ -30,6 +30,8 @@ serde_json = { version = "1" }
 
 clap =         { version = "4", features = ["derive"] }
 
+pci-info =     { version = "0.2" }
+
 
 [target.'cfg(target_os = "linux")'.dependencies]
 nix = { version = "0.26" }
