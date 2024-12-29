@@ -375,10 +375,13 @@ fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCou
         let server_pcie_devices = ask_server_for_pci_devices(); // ask_server_for_pci_devices needs try_write() and doing that within a try_read() always fails
         if let Ok(globals_rl) = GLOBALS.try_read() {
             let server_url: String = globals_rl.server_url.clone();
-            let mut server_txt = format!("{}", &server_url);
+            let mut server_txt = format!("{}\n", &server_url);
+            let num_devices = server_pcie_devices.len();
             for (i, device_name) in server_pcie_devices.iter().enumerate() {
-                server_txt.push_str("\n");
                 server_txt.push_str(&format!("({}) {}", i, &device_name));
+                if i != num_devices-1 {
+                    server_txt.push_str(" // ");
+                }
             }
             for mut text in &mut query { // Append to existing content in support of a streaming design.
                 text.sections[0].value = server_txt.clone();
