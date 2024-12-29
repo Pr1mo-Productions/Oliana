@@ -322,7 +322,17 @@ impl Oliana for OlianaServer {
                 for device in pcie_devices {
                     match device {
                         Ok(device) => {
-                            result.push(format!("{:?}", device));
+                            match device.device_iface() {
+                                Ok(iface) => {
+                                    if iface == pci_info::pci_enums::PciDeviceInterfaceFunc::DisplayController_VgaCompatible_Vga { // It's a GPU!
+                                        result.push(format!("{:?}", device));
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                    result.push(format!("{:?}", e));
+                                }
+                            }
                         }
                         Err(e) => {
                             eprintln!("{}:{} {:?}", file!(), line!(), e);
