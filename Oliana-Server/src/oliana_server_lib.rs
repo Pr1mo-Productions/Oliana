@@ -332,7 +332,10 @@ impl Oliana for OlianaServer {
                                             let info = db.get_device_info(
                                                 vendor_id.as_str(), device_id.as_str(), "", ""
                                             );
-                                            result.push(format!("{} {}", info.vendor_name.unwrap_or_else(|| "UNK".into()), info.device_name.unwrap_or_else(|| "UNK".into()) ));
+                                            result.push(format!("{} {}",
+                                                simplify_pci_dev_name(info.vendor_name.unwrap_or_else(|| "UNK".into())),
+                                                simplify_pci_dev_name(info.device_name.unwrap_or_else(|| "UNK".into()))
+                                            ));
                                         }
                                         else {
                                             result.push(format!("[ NO PCI DATABASE ] {:?}", device));
@@ -360,6 +363,18 @@ impl Oliana for OlianaServer {
         return result;
     }
 }
+
+fn simplify_pci_dev_name(name: &str) -> String {
+    let name = name.replace("Corporation ", "");
+    let name = name.replace(" Corporation", "");
+    let name = name.replace("Corporation", "");
+    let name = name.replace(" Graphics", "");
+    let name = name.replace("Advanced Micro Devices ", "AMD ");
+    let name = name.replace("Advanced Micro Devices,", "AMD,");
+    let name = name.replace("  ", " ");
+    return name;
+}
+
 
 
 
