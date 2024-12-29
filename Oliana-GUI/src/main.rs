@@ -560,7 +560,7 @@ fn read_ai_prompt_events(
                                         break;
                                     }
                                     eprintln!("BEFORE tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await");
-                                    match tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
+                                    match async_std::future::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
                                         Ok(Ok(Some(next_token))) => {
                                           eprint!("{}", &next_token);
                                           let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), next_token.to_string() ));

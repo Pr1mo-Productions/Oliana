@@ -23,7 +23,9 @@ lazy_static =  { version = "1" }
 sysinfo =      { version = "0.33" }
 
 tarpc =        { version = "0.35", features = ["tokio1", "tokio1", "tcp", "serde-transport-bincode"] }
-serde_json = { version = "1" }
+serde_json =   { version = "1" }
+
+async-std =    { version = "1.13" }
 
 
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
