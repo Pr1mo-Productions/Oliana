@@ -533,22 +533,14 @@ fn read_ai_prompt_events(
                         Ok(transport) => {
                             let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
 
+                            let mut generate_text_has_begun = false;
                             match client.generate_text_begin(tarpc::context::current(),
                                 "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
                                 ev_txt.into()
                             ).await {
                                 Ok(response) => {
                                     eprintln!("[ generate_text_begin ] response = {}", &response);
-                                    // Poll continuously, sending state up to the GUI text
-                                    while let Ok(Some(next_token)) = client.generate_text_next_token(tarpc::context::current()).await {
-                                      eprint!("{}", &next_token);
-                                      let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), next_token.to_string() ));
-                                      if let Err(e) = r {
-                                        eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                      }
-                                    }
-                                    eprintln!("");
-                                    eprintln!("DONE with client.generate_text_next_token");
+                                    generate_text_has_begun = true;
                                 },
                                 Err(e) => {
                                     let msg = format!("{}:{} {:?}", file!(), line!(), e);
@@ -559,6 +551,38 @@ fn read_ai_prompt_events(
                                     }
                                 }
                             }
+
+                            if generate_text_has_begun {
+                                // Poll continuously, sending state up to the GUI text
+                                let mut remaining_allowed_errs: isize = 3;
+                                loop {
+                                    if remaining_allowed_errs < 1 {
+                                        break;
+                                    }
+                                    match tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
+                                        Ok(Ok(Some(next_token))) => {
+                                          eprint!("{}", &next_token);
+                                          let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), next_token.to_string() ));
+                                          if let Err(e) = r {
+                                            eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                          }
+                                        }
+                                        Ok(Ok(None)) => {
+                                          remaining_allowed_errs -= 1;
+                                        }
+                                        Ok(Err(server_err)) => {
+                                          remaining_allowed_errs -= 1;
+                                          eprintln!("{}:{} {:?}", file!(), line!(), server_err);
+                                        }
+                                        Err(timeout_err) => {
+                                          remaining_allowed_errs -= 1;
+                                          eprintln!("{}:{} {:?}", file!(), line!(), timeout_err);
+                                        }
+                                    }
+                                }
+                                eprintln!("Done with client.generate_text_next_token!");
+                            }
+
                         }
                         Err(e) => {
                             let msg = format!("{}:{} {:?}", file!(), line!(), e);
