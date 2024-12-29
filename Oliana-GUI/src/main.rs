@@ -378,9 +378,17 @@ fn ask_server_for_pci_devices() -> Vec<String> {
     let mut server_url = String::new();
     if let Ok(globals_rl) = GLOBALS.try_read() {
         server_url.push_str(&globals_rl.server_url);
+        if let Some(cached_pcie_devices) = globals_rl.server_pcie_devices.get(&globals_rl.server_url) {
+            if cached_pcie_devices.len() > 0 {
+                for d in cached_pcie_devices.iter() {
+                    pcie_devices.push(d.clone());
+                }
+                return pcie_devices;
+            }
+        }
     }
     if server_url.len() > 0 {
-        if let Ok(globals_wl) = GLOBALS.try_write() {
+        if let Ok(mut globals_wl) = GLOBALS.try_write() {
             if let Some(tokio_rt) = &globals_wl.tokio_rt {
                 tokio_rt.block_on(async {
                     if let Err(e) = ask_server_for_pci_devices_async(&server_url, &mut pcie_devices).await {
@@ -390,6 +398,10 @@ fn ask_server_for_pci_devices() -> Vec<String> {
             }
             else {
                 eprintln!("{}:{} globals_wl.tokio_rt is None!", file!(), line!() );
+            }
+            if pcie_devices.len() > 0 {
+                let server_url_clone = globals_wl.server_url.clone();
+                globals_wl.server_pcie_devices.insert(server_url_clone, pcie_devices.clone() );
             }
         }
         else {

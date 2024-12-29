@@ -38,6 +38,7 @@ pub struct Globals {
 
     // Things which want to change servers can modify this + everything creating new connections to a server should reference this global
     pub server_url: String,
+    pub server_pcie_devices: std::collections::HashMap<String, Vec<String>>,
 }
 
 impl Globals {
@@ -47,7 +48,8 @@ impl Globals {
             server_proc: None,
             expected_bin_directory: std::path::PathBuf::new(),
             track_proc_dir: std::path::PathBuf::new(),
-            server_url: std::env::var("OLIANA_SERVER").unwrap_or_else(|_|"127.0.0.1:9050".into()) // Users may set OLIANA_SERVER=<host>:<port> to default to a different server
+            server_url: std::env::var("OLIANA_SERVER").unwrap_or_else(|_|"127.0.0.1:9050".into()), // Users may set OLIANA_SERVER=<host>:<port> to default to a different server
+            server_pcie_devices: std::collections::HashMap::new(),
         }
     }
 
