@@ -194,8 +194,8 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .add_systems(Startup, (setup, determine_if_we_have_local_gpu) )
     .add_systems(Update, focus.before(TextInputSystem))
     .add_systems(Update, text_listener.after(TextInputSystem))
-    .add_systems(Update, read_ollama_response_events)
-    .add_systems(Update, read_ollama_prompt_events)
+    .add_systems(Update, read_ai_response_events)
+    .add_systems(Update, read_ai_prompt_events)
     .add_systems(Update, reset_scroll) // TODO move this down/make it accessible someplace
 
    .run();
@@ -339,7 +339,7 @@ fn setup(mut commands: Commands) {
         scroll_area.spawn((
             TextBundle::from_section(
                 // Accepts a `String` or any type that converts into a `String`, such as `&str`
-                "hello\nbevy!",
+                "Hello\nOliana!",
                 TextStyle {
                     // This font is loaded and will be used instead of the default font.
                     // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
@@ -473,110 +473,111 @@ fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer
 }
 
 
-fn read_ollama_response_events(
+fn read_ai_response_events(
     mut event_reader: EventReader<ResponseFromAI>,
     mut query: Query<&mut Text, With<LLM_ReplyText>>
 ) {
     for ev in event_reader.read() {
         eprintln!("Event {:?} recieved!", ev);
-        let renderable_string = ev.0.to_string();
-        let renderable_string = renderable_string.replace("—", "-"); // Language models can produce hard-to-render glyphs which we manually remove here.
-        if ev.0 == CLEAR_TOKEN {
-            // Clear the screen
-            for mut text in &mut query { // We'll only ever have 1 section of text rendered
-                text.sections[0].value = String::new();
+        let event_type = ev.0.to_string();
+        match event_type.as_str() {
+            "text" => {
+                let renderable_string = ev.1.to_string();
+                let renderable_string = renderable_string.replace("—", "-"); // Language models can produce hard-to-render glyphs which we manually remove here.
+                if ev.1 == CLEAR_TOKEN {
+                    // Clear the screen
+                    for mut text in &mut query { // We'll only ever have 1 section of text rendered
+                        text.sections[0].value = String::new();
+                    }
+                }
+                else {
+                    for mut text in &mut query { // Append to existing content in support of a streaming design.
+                        text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string.to_string());
+                    }
+                }
             }
-        }
-        else {
-            for mut text in &mut query { // Append to existing content in support of a streaming design.
-                text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string.to_string());
+            unk => {
+                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
             }
         }
     }
 }
 
-fn read_ollama_prompt_events(
+fn read_ai_prompt_events(
     mut commands: Commands,
     mut event_reader: EventReader<PromptToAI>,
     // mut event_writer: EventWriter<ResponseFromAI>,
 ) {
 
     for ev in event_reader.read() {
-        let ev_txt = ev.0.to_string();
-        eprintln!("Passing this prompt to Ollama: {:?}", ev.0);
+        let event_type = ev.0.to_string();
+        match event_type.as_str() {
+            "text" => {
+                let ev_txt = ev.1.to_string();
+                eprintln!("Passing this text prompt to AI: {:?}", &ev_txt);
 
-        commands.spawn_task(|| async move {
+                commands.spawn_task(|| async move {
 
-            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-            if let Err(e) = r {
-                eprintln!("[ read_ollama_prompt_events ] {:?}", e);
-            }
+                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                    if let Err(e) = r {
+                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                    }
 
-            /*match ollama_resource_readlock.generate_stream(ollama_rs::generation::completion::request::GenerationRequest::new(closure_owned_desired_model_name, ev_txt)).await {
-                Ok(mut reply_stream) => {
-                    while let Some(Ok(several_responses)) = reply_stream.next().await {
-                        for response in several_responses.iter() {
-                            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), response.response.to_string() ));
+                    let mut server_url = String::new();
+                    if let Ok(mut globals_rl) = GLOBALS.try_read() {
+                        server_url.push_str(&globals_rl.server_url);
+                    }
+                    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
+                    transport.config_mut().max_frame_length(usize::MAX);
+                    match transport.await {
+                        Ok(transport) => {
+                            let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
+
+                            match client.generate_text_begin(tarpc::context::current(),
+                                "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
+                                ev_txt.into()
+                            ).await {
+                                Ok(response) => {
+                                    eprintln!("[ generate_text_begin ] response = {}", &response);
+                                    // Poll continuously, sending state up to the GUI text
+                                    while let Ok(Some(next_token)) = client.generate_text_next_token(tarpc::context::current()).await {
+                                      eprint!("{}", &next_token);
+                                      let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), next_token.to_string() ));
+                                      if let Err(e) = r {
+                                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                      }
+                                    }
+                                    eprintln!("");
+                                },
+                                Err(e) => {
+                                    let msg = format!("{}:{} {:?}", file!(), line!(), e);
+                                    eprintln!("{}", &msg);
+                                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                                    if let Err(e) = r {
+                                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            let msg = format!("{}:{} {:?}", file!(), line!(), e);
+                            eprintln!("{}", &msg);
+                            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
                             if let Err(e) = r {
-                                eprintln!("[ read_ollama_prompt_events ] {:?}", e);
+                                eprintln!("{}:{} {:?}", file!(), line!(), e);
                             }
                         }
                     }
-                }
-                Err(e) => {
-                    eprintln!("e = {:?}", e);
-                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), format!("{:?}", e)));
-                    if let Err(e) = r {
-                        eprintln!("[ read_ollama_prompt_events ] {:?}", e);
-                    }
-                }
-            }*/
 
-            Ok(())
-        });
+                    Ok(())
+                });
+            }
+            unk => {
+                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
+            }
+        }
     }
 }
-
-fn poll_for_write_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, num_retries: usize, retry_delay_s: u64) -> std::sync::RwLockWriteGuard<T> {
-    let mut remaining_polls = num_retries;
-    loop {
-        remaining_polls -= 1;
-        match std::sync::RwLock::write(&arc_rwlock) {
-            Ok(rwlock) => {
-                return rwlock;
-            }
-            Err(e) => {
-                eprintln!("[ poll_for_write_lock ] {:?}", e);
-                std::thread::sleep(std::time::Duration::from_millis(retry_delay_s));
-            }
-        }
-        if remaining_polls < 1 {
-            break;
-        }
-    }
-    panic!("[ poll_for_write_lock ] Timed out waiting for a lock!")
-}
-
-fn poll_for_read_lock<T>(arc_rwlock: &std::sync::Arc::<std::sync::RwLock::<T>>, num_retries: usize, retry_delay_s: u64) -> std::sync::RwLockReadGuard<T> {
-    let mut remaining_polls = num_retries;
-    loop {
-        remaining_polls -= 1;
-        match std::sync::RwLock::read(&arc_rwlock) {
-            Ok(rwlock) => {
-                return rwlock;
-            }
-            Err(e) => {
-                eprintln!("[ poll_for_write_lock ] {:?}", e);
-                std::thread::sleep(std::time::Duration::from_millis(retry_delay_s));
-            }
-        }
-        if remaining_polls < 1 {
-            break;
-        }
-    }
-    panic!("[ poll_for_write_lock ] Timed out waiting for a lock!")
-}
-
 
 fn determine_if_we_have_local_gpu(mut commands: Commands) {
 
