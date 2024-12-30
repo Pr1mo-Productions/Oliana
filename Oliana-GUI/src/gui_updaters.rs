@@ -106,7 +106,20 @@ pub fn read_ai_response_events(
         match event_type.as_str() {
             "text" => {
                 let renderable_string = ev.1.to_string();
-                let renderable_string = renderable_string.replace("—", "-"); // Language models can produce hard-to-render glyphs which we manually remove here.
+                let has_begin_line_ending = renderable_string.starts_with("\n") || renderable_string.starts_with("\r\n");
+                let has_end_line_ending = renderable_string.ends_with("\n") || renderable_string.ends_with("\r\n");
+
+                let mut renderable_string = deunicode::deunicode(&renderable_string); // Language models can produce hard-to-render glyphs which we manually remove here.
+
+                if has_begin_line_ending && !(renderable_string.starts_with("\n") || renderable_string.starts_with("\r\n")) {
+                    renderable_string = format!("\n{renderable_string}");
+                }
+                if has_end_line_ending && !(renderable_string.ends_with("\n") || renderable_string.ends_with("\r\n")) {
+                    renderable_string = format!("{renderable_string}\n");
+                }
+
+                let renderable_string = renderable_string;
+
                 if ev.1 == CLEAR_TOKEN {
                     // Clear the screen
                     for mut text in &mut query { // We'll only ever have 1 section of text rendered
@@ -115,7 +128,7 @@ pub fn read_ai_response_events(
                 }
                 else {
                     for mut text in &mut query { // Append to existing content in support of a streaming design.
-                        text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string.to_string());
+                        text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string);
                     }
                 }
             }
@@ -176,14 +189,15 @@ pub fn read_ai_prompt_events(
                             }
 
                             if generate_text_has_begun {
-                                // Poll continuously, sending state up to the GUI text
+                                // Poll continuously, sending state up to the GUI text.
+                                // TODO the LAST event in this does not return None as expected, so we do not exit smoothly and we block the UI thread!
                                 let mut remaining_allowed_errs: isize = 3;
                                 loop {
                                     if remaining_allowed_errs < 1 {
                                         break;
                                     }
                                     eprintln!("BEFORE tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await");
-                                    match async_std::future::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
+                                    match async_std::future::timeout(std::time::Duration::from_millis(1200), client.generate_text_next_token(tarpc::context::current())).await {
                                         Ok(Ok(Some(next_token))) => {
                                           eprint!("{}", &next_token);
                                           let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
@@ -192,7 +206,7 @@ pub fn read_ai_prompt_events(
                                           }
                                         }
                                         Ok(Ok(None)) => {
-                                          remaining_allowed_errs -= 1;
+                                          remaining_allowed_errs -= 10;
                                         }
                                         Ok(Err(server_err)) => {
                                           remaining_allowed_errs -= 1;

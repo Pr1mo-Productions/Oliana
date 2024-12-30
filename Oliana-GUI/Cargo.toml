@@ -26,7 +26,7 @@ tarpc =        { version = "0.35", features = ["tokio1", "tokio1", "tcp", "serde
 serde_json =   { version = "1" }
 
 async-std =    { version = "1.13" }
-
+deunicode =    { version = "1.6" }
 
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
 [target.'cfg(target_os = "linux")'.dependencies]

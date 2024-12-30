@@ -1,4 +1,6 @@
 
+#![allow(dead_code)]
+
 use crate::*;
 
 
@@ -18,4 +20,14 @@ pub struct LLM_ReplyText;
 // A unit struct to help identify the server URL text in the upper-right of the UI
 #[derive(Component)]
 pub struct Server_URL;
+
+// A unit struct to tag+identify the sprite behind text & rest of UI
+#[derive(Component)]
+pub struct Background_Image;
+
+// A unit struct to tag+identify the sprite in front of the background who is speaking
+#[derive(Component)]
+pub struct Foreground_Character;
+
+
 

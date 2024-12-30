@@ -17,6 +17,7 @@ pub fn gui_setup(mut commands: Commands) {
                     padding: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
+                background_color: BACKGROUND_COLOR.into(),
                 ..default()
             },
             // Make this container node bundle to be Interactive so that clicking on it removes
@@ -39,7 +40,7 @@ pub fn gui_setup(mut commands: Commands) {
                         ..default()
                     },
                     border_color: BORDER_COLOR_INACTIVE.into(),
-                    background_color: BACKGROUND_COLOR.into(),
+                    // background_color: BACKGROUND_COLOR.into(),
                     // Prevent clicks on the input from also bubbling down to the container
                     // behind it
                     focus_policy: bevy::ui::FocusPolicy::Block,

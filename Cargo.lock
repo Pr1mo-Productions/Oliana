@@ -2342,6 +2342,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deunicode"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "339544cc9e2c4dc3fc7149fd630c5f22263a4fdf18a98afd0075784968b5cf00"
+
+[[package]]
 name = "dirs"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4936,6 +4942,7 @@ dependencies = [
  "bevy_simple_scroll_view",
  "bevy_simple_text_input",
  "clap",
+ "deunicode",
  "lazy_static",
  "num_cpus",
  "oliana_lib",
