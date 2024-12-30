@@ -11,7 +11,7 @@ use bevy::{
 use bevy::prelude::*;
 
 use bevy_simple_text_input::{
-    TextInputBundle, TextInputInactive, TextInputPlugin, TextInputSystem, TextInputSubmitEvent
+    TextInputBinding, TextInputInactive, TextInputPlugin, TextInputSystem, TextInputSubmitEvent
 };
 
 use bevy_defer::AsyncCommandsExtension;

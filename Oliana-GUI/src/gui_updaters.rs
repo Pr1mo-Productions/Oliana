@@ -25,7 +25,7 @@ pub fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<Fram
                 }
             }
             for mut text in &mut query { // Append to existing content in support of a streaming design.
-                text.sections[0].value = server_txt.clone();
+                **text = server_txt.clone();
             }
         }
     }
@@ -123,12 +123,12 @@ pub fn read_ai_response_events(
                 if ev.1 == CLEAR_TOKEN {
                     // Clear the screen
                     for mut text in &mut query { // We'll only ever have 1 section of text rendered
-                        text.sections[0].value = String::new();
+                        **text = String::new();
                     }
                 }
                 else {
                     for mut text in &mut query { // Append to existing content in support of a streaming design.
-                        text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string);
+                        **text = format!("{}{}", text.as_str(), renderable_string);
                     }
                 }
             }
