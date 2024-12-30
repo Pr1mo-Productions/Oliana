@@ -29,8 +29,16 @@ const CLEAR_TOKEN: &'static str = "!!!CLEAR!!!";
 use clap::Parser;
 
 mod structs;
+// Holds Bevy-annotated structures
+mod gui_structs;
+// Setup holds a single large function that constructs the Bevy UI components and links them to event handlers
 mod gui_setup;
+// gui_updaters contain event-based callbacks which perform per-frame rendering logic and event management such as talking to/from the AI server
 mod gui_updaters;
+// gui_painters contains functions which do the same as gui_updaters, but are vastly simpler and do not care about global state (such as hover UI render logic)
+mod gui_painters;
+// gui_oneshot_tasks contains functions that will run once and then stop
+mod gui_oneshot_tasks;
 
 lazy_static::lazy_static! {
     static ref GLOBALS: std::sync::RwLock::<structs::Globals> = std::sync::RwLock::new(structs::Globals::new());
@@ -187,335 +195,20 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .add_plugins(TextInputPlugin)
     .add_plugins(ScrollViewPlugin)
 
-    .add_event::<PromptToAI>()
-    .add_event::<ResponseFromAI>()
+    .add_event::<gui_structs::PromptToAI>()
+    .add_event::<gui_structs::ResponseFromAI>()
 
     .insert_resource((*cli_args).clone()) // Accept a Ref<crate::cli::Args> in your system's function to read cli args in the UI
 
     .add_systems(Update, (gui_updaters::make_visible, gui_updaters::render_server_url_in_use) )
-    .add_systems(Startup, (gui_setup::gui_setup, determine_if_we_have_local_gpu) )
-    .add_systems(Update, focus.before(TextInputSystem))
-    .add_systems(Update, text_listener.after(TextInputSystem))
-    .add_systems(Update, read_ai_response_events)
-    .add_systems(Update, read_ai_prompt_events)
-    .add_systems(Update, reset_scroll) // TODO move this down/make it accessible someplace
+    .add_systems(Startup, (gui_setup::gui_setup, gui_oneshot_tasks::determine_if_we_have_local_gpu) )
+    .add_systems(Update, gui_painters::focus.before(TextInputSystem))
+    .add_systems(Update, gui_updaters::text_listener.after(TextInputSystem))
+    .add_systems(Update, gui_updaters::read_ai_response_events)
+    .add_systems(Update, gui_updaters::read_ai_prompt_events)
+    .add_systems(Update, gui_painters::reset_scroll) // TODO move this down/make it accessible someplace
 
    .run();
 
    Ok(())
 }
-
-fn focus(
-    query: Query<(Entity, &Interaction), Changed<Interaction>>,
-    mut text_input_query: Query<(Entity, &mut TextInputInactive, &mut BorderColor)>,
-) {
-    for (interaction_entity, interaction) in &query {
-        if *interaction == Interaction::Pressed {
-            for (entity, mut inactive, mut border_color) in &mut text_input_query {
-                if entity == interaction_entity {
-                    inactive.0 = false;
-                    *border_color = BORDER_COLOR_ACTIVE.into();
-                } else {
-                    inactive.0 = true;
-                    *border_color = BORDER_COLOR_INACTIVE.into();
-                }
-            }
-        }
-    }
-}
-
-fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer: EventWriter<PromptToAI>,) {
-    for event in events.read() {
-        info!("{:?} submitted: {}", event.entity, event.value);
-        event_writer.send(PromptToAI("text".into(), event.value.clone()));
-    }
-}
-
-
-fn read_ai_response_events(
-    mut event_reader: EventReader<ResponseFromAI>,
-    mut query: Query<&mut Text, With<LLM_ReplyText>>
-) {
-    for ev in event_reader.read() {
-        eprintln!("Event {:?} recieved!", ev);
-        let event_type = ev.0.to_string();
-        match event_type.as_str() {
-            "text" => {
-                let renderable_string = ev.1.to_string();
-                let renderable_string = renderable_string.replace("—", "-"); // Language models can produce hard-to-render glyphs which we manually remove here.
-                if ev.1 == CLEAR_TOKEN {
-                    // Clear the screen
-                    for mut text in &mut query { // We'll only ever have 1 section of text rendered
-                        text.sections[0].value = String::new();
-                    }
-                }
-                else {
-                    for mut text in &mut query { // Append to existing content in support of a streaming design.
-                        text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string.to_string());
-                    }
-                }
-            }
-            unk => {
-                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
-            }
-        }
-    }
-}
-
-fn read_ai_prompt_events(
-    mut commands: Commands,
-    mut event_reader: EventReader<PromptToAI>,
-    // mut event_writer: EventWriter<ResponseFromAI>,
-) {
-
-    for ev in event_reader.read() {
-        let event_type = ev.0.to_string();
-        match event_type.as_str() {
-            "text" => {
-                let ev_txt = ev.1.to_string();
-                eprintln!("Passing this text prompt to AI: {:?}", &ev_txt);
-
-                commands.spawn_task(|| async move {
-
-                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-                    if let Err(e) = r {
-                        eprintln!("{}:{} {:?}", file!(), line!(), e);
-                    }
-
-                    let mut server_url = String::new();
-                    if let Ok(mut globals_rl) = GLOBALS.try_read() {
-                        server_url.push_str(&globals_rl.server_url);
-                    }
-                    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
-                    transport.config_mut().max_frame_length(usize::MAX);
-                    match transport.await {
-                        Ok(transport) => {
-                            let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
-
-                            let mut generate_text_has_begun = false;
-                            match client.generate_text_begin(tarpc::context::current(),
-                                "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
-                                ev_txt.into()
-                            ).await {
-                                Ok(response) => {
-                                    eprintln!("[ generate_text_begin ] response = {}", &response);
-                                    generate_text_has_begun = true;
-                                },
-                                Err(e) => {
-                                    let msg = format!("{}:{} {:?}", file!(), line!(), e);
-                                    eprintln!("{}", &msg);
-                                    let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-                                    if let Err(e) = r {
-                                        eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                    }
-                                }
-                            }
-
-                            if generate_text_has_begun {
-                                // Poll continuously, sending state up to the GUI text
-                                let mut remaining_allowed_errs: isize = 3;
-                                loop {
-                                    if remaining_allowed_errs < 1 {
-                                        break;
-                                    }
-                                    eprintln!("BEFORE tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await");
-                                    match async_std::future::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
-                                        Ok(Ok(Some(next_token))) => {
-                                          eprint!("{}", &next_token);
-                                          let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), next_token.to_string() ));
-                                          if let Err(e) = r {
-                                            eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                          }
-                                        }
-                                        Ok(Ok(None)) => {
-                                          remaining_allowed_errs -= 1;
-                                        }
-                                        Ok(Err(server_err)) => {
-                                          remaining_allowed_errs -= 1;
-                                          eprintln!("{}:{} {:?}", file!(), line!(), server_err);
-                                        }
-                                        Err(timeout_err) => {
-                                          remaining_allowed_errs -= 1;
-                                          eprintln!("{}:{} {:?}", file!(), line!(), timeout_err);
-                                        }
-                                    }
-                                    eprintln!("AFTER tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await remaining_allowed_errs={remaining_allowed_errs}");
-                                }
-                                eprintln!("Done with client.generate_text_next_token!");
-                            }
-
-                        }
-                        Err(e) => {
-                            let msg = format!("{}:{} {:?}", file!(), line!(), e);
-                            eprintln!("{}", &msg);
-                            let r = bevy_defer::access::AsyncWorld.send_event(ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-                            if let Err(e) = r {
-                                eprintln!("{}:{} {:?}", file!(), line!(), e);
-                            }
-                        }
-                    }
-
-                    Ok(())
-                });
-            }
-            unk => {
-                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
-            }
-        }
-    }
-}
-
-fn determine_if_we_have_local_gpu(mut commands: Commands) {
-
-    commands.spawn_task(|| async move {
-
-        let sentinel_val = std::collections::HashMap::<String, u32>::new();
-        if let Err(e) = oliana_lib::files::set_cache_file_server_proc_restart_data(&sentinel_val) {
-            eprintln!("{}:{} {:?}", file!(), line!(), e);
-        }
-
-        tokio::time::sleep(std::time::Duration::from_millis(1400)).await; // Allow one 1/2 tick for file to be cleared
-
-        let t0_restarts = tally_server_subproc_restarts();
-
-        tokio::time::sleep(std::time::Duration::from_millis(3 * 2600)).await;
-
-        let t1_restarts = tally_server_subproc_restarts();
-
-        let expected_num_subprocs = tally_expected_num_subprocs();
-
-        eprintln!("t0_restarts={t0_restarts} t1_restarts={t1_restarts}");
-
-        if t1_restarts > expected_num_subprocs && t1_restarts > t0_restarts {
-            eprintln!("We think we do not have GPU hardware because t1_restarts={t1_restarts} > t0_restarts={t0_restarts} (expected expected_num_subprocs={expected_num_subprocs}");
-            let mut maybe_tokio_rt: Option<tokio::runtime::Handle> = None;
-            if let Ok(mut globals_wl) = GLOBALS.try_write() {
-                maybe_tokio_rt = globals_wl.tokio_rt.clone();
-            }
-            // After releasing the write lock we can safely tell cleanup_child_procs() to clean-up the server
-            if let Some(tokio_rt) = maybe_tokio_rt {
-                // Because network + process killing is slow we send it to a background tokio thread
-                tokio_rt.spawn(async move {
-                    if let Ok(mut globals_wl) = GLOBALS.try_write() {
-                        let available_server = scan_for_an_open_tcp_port_at(&[
-                            "127.0.0.1:8011",
-                            // TODO expand list, read an env var, etc.
-                        ]);
-                        if available_server.len() > 0 {
-                            globals_wl.server_url = available_server;
-                            eprintln!("Connecting to server {} because our local server sub-processes are not starting up!", &globals_wl.server_url);
-                        }
-                    }
-                    // GLOBALS.try_write has been released, so cleanup_child_procs can grab it
-                    cleanup_child_procs();
-                    eprintln!("Done stopping local tools, now using remote ones if a server was available.");
-
-                });
-            }
-        }
-
-
-        Ok(())
-    });
-
-/*    .add(|w: &mut World| {
-        w.send_event(ReadyToProcessOnServerEvent("".into()));
-    });
-*/
-}
-
-fn scan_for_an_open_tcp_port_at(servers: &[&str]) -> String {
-    let mut picked = String::new();
-    for server in servers {
-        match std::net::TcpStream::connect(server) {
-            Ok(_conn) => {
-                picked = server.to_string();
-            }
-            Err(e) => {
-                eprintln!("{}:{} {:?}", file!(), line!(), e);
-            }
-        }
-    }
-    return picked;
-}
-
-fn tally_server_subproc_restarts() -> usize {
-    let mut num_restarts: usize = 0;
-    match oliana_lib::files::get_cache_file_server_proc_restart_data() {
-        Ok(data) => {
-            for (_k,v) in data.into_iter() {
-                num_restarts += v as usize;
-            }
-        }
-        Err(e) => {
-            eprintln!("{}:{} {:?}", file!(), line!(), e);
-        }
-    }
-    return num_restarts;
-}
-
-fn tally_expected_num_subprocs() -> usize {
-    let mut num_subprocs: usize = 0;
-    match oliana_lib::files::get_cache_file_server_proc_restart_data() {
-        Ok(data) => {
-            for (_k,_v) in data.into_iter() {
-                num_subprocs += 1;
-            }
-        }
-        Err(e) => {
-            eprintln!("{}:{} {:?}", file!(), line!(), e);
-        }
-    }
-    return num_subprocs;
-}
-
-
-/*#[derive(Debug, Clone, Default, bevy::ecs::system::Resource)]
-pub struct OllamaResource {
-    pub ollama_inst: std::sync::Arc<std::sync::RwLock<ollama_rs::Ollama>>,
-}*/
-
-
-// first string is type of prompt, second string is prompt text; TODO possible args to add configs that go to oliana_text and oliana_images
-#[derive(Debug, bevy::ecs::event::Event)]
-pub struct PromptToAI(String, String);
-
-// first string is type of prompt, second string is prompt reply. if "text" second string is simply the string, if "image" the second string is a file path to a .png.
-#[derive(Debug, bevy::ecs::event::Event)]
-pub struct ResponseFromAI(String, String);
-
-
-// A unit struct to help identify the Ollama Reply UI component, since there may be many Text components
-#[derive(Component)]
-struct LLM_ReplyText;
-
-// A unit struct to help identify the server URL text in the upper-right of the UI
-#[derive(Component)]
-struct Server_URL;
-
-
-
-
-
-
-
-fn reset_scroll(
-    q: Query<&Interaction, Changed<Interaction>>,
-    mut scrolls_q: Query<&mut ScrollableContent>,
-) {
-    let Ok(mut scroll) = scrolls_q.get_single_mut() else {
-        eprintln!("scrolls_q = returned None!");
-        return;
-    };
-    for interaction in q.iter() {
-        // eprintln!("interaction = {:?}", interaction);
-        if interaction != &Interaction::Pressed {
-            continue;
-        }
-        /*match action {
-            ScrollButton::MoveToTop => scroll.scroll_to_top(),
-            ScrollButton::MoveToBottom => scroll.scroll_to_bottom(),
-        }*/
-    }
-}
-

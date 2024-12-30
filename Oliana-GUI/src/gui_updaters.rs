@@ -11,7 +11,7 @@ pub fn make_visible(mut window: Query<&mut Window>, frames: Res<FrameCount>) {
     }
 }
 
-pub fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCount>, mut query: Query<&mut Text, With<Server_URL>>) {
+pub fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCount>, mut query: Query<&mut Text, With<gui_structs::Server_URL>>) {
     if frames.0 % 24 == 0 {
         let server_pcie_devices = ask_server_for_pci_devices(); // ask_server_for_pci_devices needs try_write() and doing that within a try_read() always fails
         if let Ok(globals_rl) = GLOBALS.try_read() {
@@ -87,3 +87,144 @@ pub async fn ask_server_for_pci_devices_async(server_url: &str, pcie_devices: &m
     Ok(())
 }
 
+
+pub fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer: EventWriter<gui_structs::PromptToAI>,) {
+    for event in events.read() {
+        info!("{:?} submitted: {}", event.entity, event.value);
+        event_writer.send(gui_structs::PromptToAI("text".into(), event.value.clone()));
+    }
+}
+
+
+pub fn read_ai_response_events(
+    mut event_reader: EventReader<gui_structs::ResponseFromAI>,
+    mut query: Query<&mut Text, With<gui_structs::LLM_ReplyText>>
+) {
+    for ev in event_reader.read() {
+        eprintln!("Event {:?} recieved!", ev);
+        let event_type = ev.0.to_string();
+        match event_type.as_str() {
+            "text" => {
+                let renderable_string = ev.1.to_string();
+                let renderable_string = renderable_string.replace("—", "-"); // Language models can produce hard-to-render glyphs which we manually remove here.
+                if ev.1 == CLEAR_TOKEN {
+                    // Clear the screen
+                    for mut text in &mut query { // We'll only ever have 1 section of text rendered
+                        text.sections[0].value = String::new();
+                    }
+                }
+                else {
+                    for mut text in &mut query { // Append to existing content in support of a streaming design.
+                        text.sections[0].value = format!("{}{}", text.sections[0].value, renderable_string.to_string());
+                    }
+                }
+            }
+            unk => {
+                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
+            }
+        }
+    }
+}
+
+pub fn read_ai_prompt_events(
+    mut commands: Commands,
+    mut event_reader: EventReader<gui_structs::PromptToAI>,
+    // mut event_writer: EventWriter<ResponseFromAI>,
+) {
+
+    for ev in event_reader.read() {
+        let event_type = ev.0.to_string();
+        match event_type.as_str() {
+            "text" => {
+                let ev_txt = ev.1.to_string();
+                eprintln!("Passing this text prompt to AI: {:?}", &ev_txt);
+
+                commands.spawn_task(|| async move {
+
+                    let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                    if let Err(e) = r {
+                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                    }
+
+                    let mut server_url = String::new();
+                    if let Ok(mut globals_rl) = GLOBALS.try_read() {
+                        server_url.push_str(&globals_rl.server_url);
+                    }
+                    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
+                    transport.config_mut().max_frame_length(usize::MAX);
+                    match transport.await {
+                        Ok(transport) => {
+                            let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
+
+                            let mut generate_text_has_begun = false;
+                            match client.generate_text_begin(tarpc::context::current(),
+                                "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
+                                ev_txt.into()
+                            ).await {
+                                Ok(response) => {
+                                    eprintln!("[ generate_text_begin ] response = {}", &response);
+                                    generate_text_has_begun = true;
+                                },
+                                Err(e) => {
+                                    let msg = format!("{}:{} {:?}", file!(), line!(), e);
+                                    eprintln!("{}", &msg);
+                                    let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                                    if let Err(e) = r {
+                                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                    }
+                                }
+                            }
+
+                            if generate_text_has_begun {
+                                // Poll continuously, sending state up to the GUI text
+                                let mut remaining_allowed_errs: isize = 3;
+                                loop {
+                                    if remaining_allowed_errs < 1 {
+                                        break;
+                                    }
+                                    eprintln!("BEFORE tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await");
+                                    match async_std::future::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await {
+                                        Ok(Ok(Some(next_token))) => {
+                                          eprint!("{}", &next_token);
+                                          let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
+                                          if let Err(e) = r {
+                                            eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                          }
+                                        }
+                                        Ok(Ok(None)) => {
+                                          remaining_allowed_errs -= 1;
+                                        }
+                                        Ok(Err(server_err)) => {
+                                          remaining_allowed_errs -= 1;
+                                          eprintln!("{}:{} {:?}", file!(), line!(), server_err);
+                                        }
+                                        Err(timeout_err) => {
+                                          remaining_allowed_errs -= 1;
+                                          eprintln!("{}:{} {:?}", file!(), line!(), timeout_err);
+                                        }
+                                    }
+                                    eprintln!("AFTER tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await remaining_allowed_errs={remaining_allowed_errs}");
+                                }
+                                eprintln!("Done with client.generate_text_next_token!");
+                            }
+
+                        }
+                        Err(e) => {
+                            let msg = format!("{}:{} {:?}", file!(), line!(), e);
+                            eprintln!("{}", &msg);
+                            let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                            if let Err(e) = r {
+                                eprintln!("{}:{} {:?}", file!(), line!(), e);
+                            }
+                        }
+                    }
+
+                    Ok(())
+                });
+            }
+            unk => {
+                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
+            }
+        }
+    }
+}

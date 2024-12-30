@@ -98,7 +98,7 @@ pub fn gui_setup(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(1.0)),
                         ..default()
                     }),
-                    Server_URL,
+                    gui_structs::Server_URL,
                 ));
             });
 
@@ -143,7 +143,7 @@ pub fn gui_setup(mut commands: Commands) {
                 padding: UiRect::all(Val::Px(4.0)),
                 ..default()
             }),
-            LLM_ReplyText,
+            gui_structs::LLM_ReplyText,
             ScrollableContent::default(),
         ));
     });
