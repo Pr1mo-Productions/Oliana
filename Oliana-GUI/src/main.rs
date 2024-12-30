@@ -374,7 +374,7 @@ fn determine_if_we_have_local_gpu(mut commands: Commands) {
             eprintln!("{}:{} {:?}", file!(), line!(), e);
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(1300)).await; // Allow one 1/2 tick for file to be cleared
+        tokio::time::sleep(std::time::Duration::from_millis(1400)).await; // Allow one 1/2 tick for file to be cleared
 
         let t0_restarts = tally_server_subproc_restarts();
 
@@ -382,9 +382,12 @@ fn determine_if_we_have_local_gpu(mut commands: Commands) {
 
         let t1_restarts = tally_server_subproc_restarts();
 
+        let expected_num_subprocs = tally_expected_num_subprocs();
+
         eprintln!("t0_restarts={t0_restarts} t1_restarts={t1_restarts}");
 
-        if t1_restarts > t0_restarts {
+        if t1_restarts > expected_num_subprocs && t1_restarts > t0_restarts {
+            eprintln!("We think we do not have GPU hardware because t1_restarts={t1_restarts} > t0_restarts={t0_restarts} (expected expected_num_subprocs={expected_num_subprocs}");
             let mut maybe_tokio_rt: Option<tokio::runtime::Handle> = None;
             if let Ok(mut globals_wl) = GLOBALS.try_write() {
                 maybe_tokio_rt = globals_wl.tokio_rt.clone();
@@ -449,6 +452,21 @@ fn tally_server_subproc_restarts() -> usize {
         }
     }
     return num_restarts;
+}
+
+fn tally_expected_num_subprocs() -> usize {
+    let mut num_subprocs: usize = 0;
+    match oliana_lib::files::get_cache_file_server_proc_restart_data() {
+        Ok(data) => {
+            for (_k,_v) in data.into_iter() {
+                num_subprocs += 1;
+            }
+        }
+        Err(e) => {
+            eprintln!("{}:{} {:?}", file!(), line!(), e);
+        }
+    }
+    return num_subprocs;
 }
 
 
