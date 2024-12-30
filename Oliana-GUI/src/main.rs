@@ -27,7 +27,10 @@ const LLM_OUTPUT_BACKGROUND_COLOR: Color = Color::srgb(0.18, 0.12, 0.18); // 138
 const CLEAR_TOKEN: &'static str = "!!!CLEAR!!!";
 
 use clap::Parser;
+
 mod structs;
+mod gui_setup;
+mod gui_updaters;
 
 lazy_static::lazy_static! {
     static ref GLOBALS: std::sync::RwLock::<structs::Globals> = std::sync::RwLock::new(structs::Globals::new());
@@ -188,10 +191,9 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .add_event::<ResponseFromAI>()
 
     .insert_resource((*cli_args).clone()) // Accept a Ref<crate::cli::Args> in your system's function to read cli args in the UI
-    //.insert_resource(OllamaResource::default()) // Accept a Ref<crate::gui::OllamaResource> in your system's function to touch the Ollama stuff
 
-    .add_systems(Update, (make_visible, render_server_url_in_use) )
-    .add_systems(Startup, (setup, determine_if_we_have_local_gpu) )
+    .add_systems(Update, (gui_updaters::make_visible, gui_updaters::render_server_url_in_use) )
+    .add_systems(Startup, (gui_setup::gui_setup, determine_if_we_have_local_gpu) )
     .add_systems(Update, focus.before(TextInputSystem))
     .add_systems(Update, text_listener.after(TextInputSystem))
     .add_systems(Update, read_ai_response_events)
@@ -201,249 +203,6 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
    .run();
 
    Ok(())
-}
-
-fn make_visible(mut window: Query<&mut Window>, frames: Res<FrameCount>) {
-    // The delay may be different for your app or system.
-    if frames.0 == 3 {
-        // At this point the gpu is ready to show the app so we can make the window visible.
-        // Alternatively, you could toggle the visibility in Startup.
-        // It will work, but it will have one white frame before it starts rendering
-        window.single_mut().visible = true;
-    }
-}
-
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
-
-    const STATUS_BAR_HEIGHT: f32 = 60.0;
-
-    commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    align_items: AlignItems::End, // End here means "Bottom"
-                    justify_content: JustifyContent::Start, // Start here means "Left"
-                    padding: UiRect::all(Val::Px(2.0)),
-                    ..default()
-                },
-                ..default()
-            },
-            // Make this container node bundle to be Interactive so that clicking on it removes
-            // focus from the text input.
-            Interaction::None,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(80.0),
-                        border: UiRect::all(Val::Px(2.0)),
-                        padding: UiRect::all(Val::Px(2.0)),
-                        margin: UiRect {
-                            left: Val::Px(2.0),
-                            top: Val::Px(2.0),
-                            right: Val::Px(2.0),
-                            bottom: Val::Px(STATUS_BAR_HEIGHT + 2.0),
-                        },
-                        ..default()
-                    },
-                    border_color: BORDER_COLOR_INACTIVE.into(),
-                    background_color: BACKGROUND_COLOR.into(),
-                    // Prevent clicks on the input from also bubbling down to the container
-                    // behind it
-                    focus_policy: bevy::ui::FocusPolicy::Block,
-                    ..default()
-                },
-                TextInputBundle::default()
-                    .with_text_style(TextStyle {
-                        font_size: 32.0,
-                        color: TEXT_COLOR,
-                        ..default()
-                    })
-                    //.with_placeholder("Click to Type Text", None)
-                    .with_inactive(true),
-            ));
-
-            parent.spawn((
-                NodeBundle {
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(4.0),
-                        right: Val::Px(4.0),
-                        bottom: Val::Px(2.0),
-                        height: Val::Px(STATUS_BAR_HEIGHT),
-                        align_items: AlignItems::End, // Start here means "Top"
-                        justify_content: JustifyContent::Start, // Start here means "Left"
-                        padding: UiRect::all(Val::Px(2.0)),
-                        ..default()
-                    },
-                    // z_index: ZIndex::Global(1000), // This ensures the text floats _above_ the LLM response text.
-                    ..default()
-                },
-            )).with_children(|node_bundle| {
-                node_bundle.spawn((
-                    TextBundle::from_section(
-                        // Accepts a `String` or any type that converts into a `String`, such as `&str`
-                        "127.0.0.1:9050",
-                        TextStyle {
-                            // This font is loaded and will be used instead of the default font.
-                            // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 14.0,
-                            color: TEXT_COLOR,
-                            ..default()
-                        },
-                    ) // Set the justification of the Text
-                    .with_text_justify(JustifyText::Left)
-                    // Set the style of the TextBundle itself.
-                    .with_style(Style {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(1.0),
-                        top: Val::Px(1.0),
-                        right: Val::Px(1.0),
-                        bottom: Val::Px(1.0),
-                        //width: Val::Px(400.0),
-                        margin: UiRect::all(Val::Px(1.0)),
-                        //border: UiRect::all(Val::Px(5.0)),
-                        padding: UiRect::all(Val::Px(1.0)),
-                        ..default()
-                    }),
-                    Server_URL,
-                ));
-            });
-
-        });
-
-    commands.spawn(( // TODO move me upstairs?
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                top: Val::Px(4.0),
-                left: Val::Px(4.0),
-                right: Val::Px(4.0),
-                bottom: Val::Px(STATUS_BAR_HEIGHT + 56.0),
-                align_items: AlignItems::Start, // Start here means "Top"
-                justify_content: JustifyContent::Start, // Start here means "Left"
-                padding: UiRect::all(Val::Px(4.0)),
-                ..default()
-            },
-            border_color: BORDER_COLOR_INACTIVE.into(),
-            background_color: LLM_OUTPUT_BACKGROUND_COLOR.into(),
-            ..default()
-        },
-        ScrollView::default(),
-    ))
-    .with_children(|scroll_area| {
-        scroll_area.spawn((
-            TextBundle::from_section(
-                // Accepts a `String` or any type that converts into a `String`, such as `&str`
-                "Hello\nOliana!",
-                TextStyle {
-                    // This font is loaded and will be used instead of the default font.
-                    // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 30.0,
-                    ..default()
-                },
-            ) // Set the justification of the Text
-            .with_text_justify(JustifyText::Left)
-            // Set the style of the TextBundle itself.
-            .with_style(Style {
-                align_self: AlignSelf::Stretch,
-                /*position_type: PositionType::Absolute,
-                top: Val::Px(4.0),
-                left: Val::Px(4.0),
-                right: Val::Px(4.0),
-                bottom: Val::Px(56.0),*/
-                // min_height: Val::Px(900.0),
-                margin: UiRect::all(Val::Px(4.0)),
-                //border: UiRect::all(Val::Px(5.0)),
-                padding: UiRect::all(Val::Px(4.0)),
-                ..default()
-            }),
-            LLM_ReplyText,
-            ScrollableContent::default(),
-        ));
-    });
-
-
-}
-
-fn render_server_url_in_use(mut window: Query<&mut Window>, frames: Res<FrameCount>, mut query: Query<&mut Text, With<Server_URL>>) {
-    if frames.0 % 24 == 0 {
-        let server_pcie_devices = ask_server_for_pci_devices(); // ask_server_for_pci_devices needs try_write() and doing that within a try_read() always fails
-        if let Ok(globals_rl) = GLOBALS.try_read() {
-            let server_url: String = globals_rl.server_url.clone();
-            let mut server_txt = format!("Server: {}\n", &server_url);
-            let num_devices = server_pcie_devices.len();
-            for (i, device_name) in server_pcie_devices.iter().enumerate() {
-                server_txt.push_str(&format!("({}) {}", i, &device_name));
-                if i != num_devices-1 {
-                    server_txt.push_str(" // ");
-                }
-            }
-            for mut text in &mut query { // Append to existing content in support of a streaming design.
-                text.sections[0].value = server_txt.clone();
-            }
-        }
-    }
-}
-
-fn ask_server_for_pci_devices() -> Vec<String> {
-    let mut pcie_devices = vec![];
-    let mut server_url = String::new();
-    if let Ok(globals_rl) = GLOBALS.try_read() {
-        server_url.push_str(&globals_rl.server_url);
-        if let Some(cached_pcie_devices) = globals_rl.server_pcie_devices.get(&globals_rl.server_url) {
-            if cached_pcie_devices.len() > 0 {
-                for d in cached_pcie_devices.iter() {
-                    pcie_devices.push(d.clone());
-                }
-                return pcie_devices;
-            }
-        }
-    }
-    if server_url.len() > 0 {
-        // We WILL NOT return the reply immediately; instead we tell the tokio thread pool to make the service request & we write to GLOBALS.server_pcie_devices and allow future ticks to read into the GUI
-        let mut maybe_tokio_rt: Option<tokio::runtime::Handle> = None;
-        if let Ok(mut globals_wl) = GLOBALS.try_write() {
-            maybe_tokio_rt = globals_wl.tokio_rt.clone();
-        }
-        else {
-            eprintln!("{}:{} GLOBALS.try_write() cannot be aquired!", file!(), line!() );
-        }
-        if let Some(tokio_rt) = maybe_tokio_rt {
-            // This work happens off the GUI thread and eventually globals_wl.server_pcie_devices will be filled
-            tokio_rt.spawn(async move {
-                let mut pcie_devices = vec![];
-                if let Err(e) = ask_server_for_pci_devices_async(&server_url, &mut pcie_devices).await {
-                    eprintln!("{}:{} {:?}", file!(), line!(), e);
-                }
-                if pcie_devices.len() > 0 {
-                    if let Ok(mut globals_wl) = GLOBALS.try_write() {
-                        let server_url_clone = globals_wl.server_url.clone();
-                        globals_wl.server_pcie_devices.insert(server_url_clone, pcie_devices.clone() );
-                    }
-                }
-            });
-        }
-
-    }
-    return pcie_devices;
-}
-
-async fn ask_server_for_pci_devices_async(server_url: &str, pcie_devices: &mut Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
-    transport.config_mut().max_frame_length(usize::MAX);
-
-    let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport.await?).spawn();
-
-    let mut hardware_names = client.fetch_pci_hw_device_names(tarpc::context::current()).await?;
-
-    pcie_devices.append(&mut hardware_names);
-
-    Ok(())
 }
 
 fn focus(
