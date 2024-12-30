@@ -18,12 +18,6 @@ use bevy_defer::AsyncCommandsExtension;
 
 use bevy_simple_scroll_view::*;
 
-const BORDER_COLOR_ACTIVE: Color = Color::srgb(0.75, 0.52, 0.99);
-const BORDER_COLOR_INACTIVE: Color = Color::srgb(0.25, 0.25, 0.25);
-const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
-const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.15, 0.15);
-const LLM_OUTPUT_BACKGROUND_COLOR: Color = Color::srgb(0.18, 0.12, 0.18); // 138,65,138
-
 const CLEAR_TOKEN: &'static str = "!!!CLEAR!!!";
 
 use clap::Parser;

@@ -1,10 +1,16 @@
 
 use crate::*;
 
+pub const STATUS_BAR_HEIGHT: f32 = 60.0;
+
+pub const BORDER_COLOR_ACTIVE: Color =         Color::srgb(0.75, 0.52, 0.99);
+pub const BORDER_COLOR_INACTIVE: Color =       Color::srgb(0.25, 0.25, 0.25);
+pub const TEXT_COLOR: Color =                  Color::srgb(0.9, 0.9, 0.9);
+pub const BACKGROUND_COLOR: Color =            Color::srgb(0.15, 0.15, 0.15);
+pub const LLM_OUTPUT_BACKGROUND_COLOR: Color = Color::srgb(0.18, 0.12, 0.18); // 138,65,138
+
 pub fn gui_setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
-
-    const STATUS_BAR_HEIGHT: f32 = 60.0;
 
     commands
         .spawn((
@@ -24,8 +30,35 @@ pub fn gui_setup(mut commands: Commands) {
             // focus from the text input.
             Interaction::None,
         ))
-        .with_children(|parent| {
-            parent.spawn((
+        .with_children(|root_parent| {
+
+            root_parent.spawn((
+                NodeBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(2.0),
+                        top: Val::Px(2.0),
+                        right: Val::Px(2.0),
+                        bottom: Val::Px(2.0),
+                        //width: Val::Percent(100.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        padding: UiRect::all(Val::Px(2.0)),
+                        margin: UiRect {
+                            left: Val::Px(2.0),
+                            top: Val::Px(2.0),
+                            right: Val::Px(2.0),
+                            bottom: Val::Px(STATUS_BAR_HEIGHT + 2.0),
+                        },
+                        ..default()
+                    },
+                    z_index: ZIndex::Global(-1000), // try to guarantee image will fall below other elements
+                    ..default()
+                },
+                //Sprite::from_image(Image::transparent()),
+                Sprite::default()
+            ));
+
+            root_parent.spawn((
                 NodeBundle {
                     style: Style {
                         width: Val::Percent(80.0),
@@ -52,11 +85,11 @@ pub fn gui_setup(mut commands: Commands) {
                         color: TEXT_COLOR,
                         ..default()
                     })
-                    //.with_placeholder("Click to Type Text", None)
+                    .with_placeholder("Type a message...", None)
                     .with_inactive(true),
             ));
 
-            parent.spawn((
+            root_parent.spawn((
                 NodeBundle {
                     style: Style {
                         position_type: PositionType::Absolute,
@@ -119,7 +152,7 @@ pub fn gui_setup(mut commands: Commands) {
                 ..default()
             },
             border_color: BORDER_COLOR_INACTIVE.into(),
-            background_color: LLM_OUTPUT_BACKGROUND_COLOR.into(),
+            // background_color: LLM_OUTPUT_BACKGROUND_COLOR.into(),
             ..default()
         },
         ScrollView::default(),

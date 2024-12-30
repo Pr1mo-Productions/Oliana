@@ -11,10 +11,10 @@ pub fn focus(
             for (entity, mut inactive, mut border_color) in &mut text_input_query {
                 if entity == interaction_entity {
                     inactive.0 = false;
-                    *border_color = BORDER_COLOR_ACTIVE.into();
+                    *border_color = gui_setup::BORDER_COLOR_ACTIVE.into();
                 } else {
                     inactive.0 = true;
-                    *border_color = BORDER_COLOR_INACTIVE.into();
+                    *border_color = gui_setup::BORDER_COLOR_INACTIVE.into();
                 }
             }
         }
