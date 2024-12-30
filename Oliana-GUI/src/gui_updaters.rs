@@ -101,7 +101,7 @@ pub fn read_ai_response_events(
     mut query: Query<&mut Text, With<gui_structs::LLM_ReplyText>>
 ) {
     for ev in event_reader.read() {
-        eprintln!("Event {:?} recieved!", ev);
+        eprintln!("{}:{} Event {:?} recieved!", file!(), line!(), ev);
         let event_type = ev.0.to_string();
         match event_type.as_str() {
             "text" => {
