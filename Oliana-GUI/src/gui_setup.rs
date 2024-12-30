@@ -131,22 +131,15 @@ pub fn gui_setup(mut commands: Commands) {
                 TextStyle {
                     // This font is loaded and will be used instead of the default font.
                     // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 30.0,
+                    font_size: 28.0,
                     ..default()
                 },
             ) // Set the justification of the Text
             .with_text_justify(JustifyText::Left)
             // Set the style of the TextBundle itself.
             .with_style(Style {
-                align_self: AlignSelf::Stretch,
-                /*position_type: PositionType::Absolute,
-                top: Val::Px(4.0),
-                left: Val::Px(4.0),
-                right: Val::Px(4.0),
-                bottom: Val::Px(56.0),*/
-                // min_height: Val::Px(900.0),
+                //align_self: AlignSelf::Stretch, // NB: This breaks the ScrollView behavior!
                 margin: UiRect::all(Val::Px(4.0)),
-                //border: UiRect::all(Val::Px(5.0)),
                 padding: UiRect::all(Val::Px(4.0)),
                 ..default()
             }),
