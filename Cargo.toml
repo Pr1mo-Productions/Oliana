@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = [ "Oliana-CLI",
+members = [
+  "Oliana-CLI",
   "Oliana-GUI",
   "Oliana-Images", "Oliana-Lib", "Oliana-Server",
   "Oliana-Text"

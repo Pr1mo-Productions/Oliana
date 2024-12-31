@@ -1,6 +1,21 @@
 
 #![allow(unused_variables)]
 
+enum InferenceType {
+  CudaOnly,
+  Anything
+}
+impl InferenceType {
+  pub fn to_string(&self) -> String {
+    match self {
+      InferenceType::CudaOnly => "cuda-only".into(),
+      InferenceType::Anything => "anything".into(),
+    }
+  }
+}
+
+const INFERENCE_TYPE: InferenceType = if cfg!(feature = "cuda") { InferenceType::CudaOnly } else { InferenceType::Anything };
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt  = tokio::runtime::Builder::new_multi_thread()
@@ -135,10 +150,17 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> Result<(), Box<dy
 
       if let Err(e) = py.import("torch") {
         eprintln!("{}:{} {:?}", file!(), line!(), e);
-        let arg_vals = vec![
-          "install".to_string(), format!("--target={site_packages}"), "torch".to_string(), "torchvision".to_string(), "torchaudio".to_string(),
-          "--index-url".to_string(), "https://download.pytorch.org/whl/cu124".to_string(),
-        ];
+        let arg_vals = match INFERENCE_TYPE {
+          InferenceType::CudaOnly =>
+            vec![
+              "install".to_string(), format!("--target={site_packages}"), "torch".to_string(), "torchvision".to_string(), "torchaudio".to_string(),
+              "--index-url".to_string(), "https://download.pytorch.org/whl/cu124".to_string(),
+            ],
+          InferenceType::Anything =>
+            vec![
+              "install".to_string(), format!("--target={site_packages}"), "torch".to_string(), "torchvision".to_string(), "torchaudio".to_string(),
+            ]
+        };
         let args = (arg_vals, );
         pip_main.call1(py, args).map_err(oliana_lib::eloc!())?;
       }
@@ -199,7 +221,7 @@ fn python_main(site_packages: &str, env_var_work_dir: &str) -> Result<(), Box<dy
       let python_module = PyModule::from_code(
           py,
           c_str!(r#"
-def main(env_var_work_dir):
+def main(env_var_work_dir, inference_type_str):
   import traceback
   import os
   import time
@@ -214,11 +236,16 @@ def main(env_var_work_dir):
   import torch
   from diffusers import StableDiffusionXLPipeline, EulerDiscreteScheduler
 
-  for i in range(torch.cuda.device_count()):
-    print('We can see the CUDA device named ', torch.cuda.get_device_properties(i).name)
-  if torch.cuda.device_count() < 0:
-    print('NO CUDA DEVICES DETECTED!')
-    raise Excepion('NO CUDA DEVICES DETECTED!')
+  try:
+    for i in range(torch.cuda.device_count()):
+      print('We can see the CUDA device named ', torch.cuda.get_device_properties(i).name)
+    if torch.cuda.device_count() < 0:
+      print('NO CUDA DEVICES DETECTED!')
+      raise Excepion('NO CUDA DEVICES DETECTED!')
+  except:
+    if 'cuda' in inference_type_str:
+      raise
+    # Otherwise we simply continue & rely on Torch to allocate CPU space
 
   try:
     fraction = float(os.environ.get('PER_PROC_MEM_FRACT', '1'))
@@ -299,7 +326,7 @@ def main(env_var_work_dir):
 
       let python_entry_fn: Py<PyAny> = python_module.getattr("main").map_err(oliana_lib::eloc!())?.into();
 
-      python_entry_fn.call1(py, (env_var_work_dir, ) ).map_err(oliana_lib::eloc!())?;
+      python_entry_fn.call1(py, (env_var_work_dir, INFERENCE_TYPE.to_string(), ) ).map_err(oliana_lib::eloc!())?;
 
       Ok(())
   })

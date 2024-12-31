@@ -3,6 +3,9 @@ name = "oliana_images"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["cuda"]
+cuda = []
 
 [dependencies]
 oliana_lib = { path = "../Oliana-Lib" }
