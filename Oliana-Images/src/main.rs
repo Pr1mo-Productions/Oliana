@@ -250,8 +250,9 @@ def main(env_var_work_dir, inference_type_str):
 
   try:
     fraction = float(os.environ.get('PER_PROC_MEM_FRACT', '1'))
-    torch.cuda.set_per_process_memory_fraction(fraction)
-    print(f'torch.cuda.set_per_process_memory_fraction({fraction}) (set by PER_PROC_MEM_FRACT, from 0.0 to 1.0)')
+    if 'cuda' in inference_type_str:
+      torch.cuda.set_per_process_memory_fraction(fraction)
+      print(f'torch.cuda.set_per_process_memory_fraction({fraction}) (set by PER_PROC_MEM_FRACT, from 0.0 to 1.0)')
   except:
     traceback.print_exc()
 
@@ -259,7 +260,8 @@ def main(env_var_work_dir, inference_type_str):
   # "etri-vilab/koala-lightning-700m"
 
   pipe = StableDiffusionXLPipeline.from_pretrained("etri-vilab/koala-lightning-1b", torch_dtype=torch.float16)
-  pipe = pipe.to("cuda")
+  if 'cuda' in inference_type_str:
+    pipe = pipe.to("cuda")
 
   # Ensure sampler uses "trailing" timesteps and "sample" prediction type.
   pipe.scheduler = EulerDiscreteScheduler.from_config(
