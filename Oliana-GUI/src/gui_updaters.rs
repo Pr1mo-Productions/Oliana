@@ -105,21 +105,6 @@ pub fn read_ai_response_events(
         let event_type = ev.0.to_string();
         match event_type.as_str() {
             "text" => {
-                let renderable_string = ev.1.to_string();
-                let has_begin_line_ending = renderable_string.starts_with("\n") || renderable_string.starts_with("\r\n");
-                let has_end_line_ending = renderable_string.ends_with("\n") || renderable_string.ends_with("\r\n");
-
-                let mut renderable_string = deunicode::deunicode(&renderable_string); // Language models can produce hard-to-render glyphs which we manually remove here.
-
-                if has_begin_line_ending && !(renderable_string.starts_with("\n") || renderable_string.starts_with("\r\n")) {
-                    renderable_string = format!("\n{renderable_string}");
-                }
-                if has_end_line_ending && !(renderable_string.ends_with("\n") || renderable_string.ends_with("\r\n")) {
-                    renderable_string = format!("{renderable_string}\n");
-                }
-
-                let renderable_string = renderable_string;
-
                 if ev.1 == CLEAR_TOKEN {
                     // Clear the screen
                     for mut text in &mut query { // We'll only ever have 1 section of text rendered
@@ -127,6 +112,21 @@ pub fn read_ai_response_events(
                     }
                 }
                 else {
+                    let renderable_string = ev.1.to_string();
+                    let has_begin_line_ending = renderable_string.starts_with("\n") || renderable_string.starts_with("\r\n");
+                    let has_end_line_ending = renderable_string.ends_with("\n") || renderable_string.ends_with("\r\n");
+
+                    let mut renderable_string = deunicode::deunicode(&renderable_string); // Language models can produce hard-to-render glyphs which we manually remove here.
+
+                    if has_begin_line_ending && !(renderable_string.starts_with("\n") || renderable_string.starts_with("\r\n")) {
+                        renderable_string = format!("\n{renderable_string}");
+                    }
+                    if has_end_line_ending && !(renderable_string.ends_with("\n") || renderable_string.ends_with("\r\n")) {
+                        renderable_string = format!("{renderable_string}\n");
+                    }
+
+                    let renderable_string = renderable_string;
+
                     for mut text in &mut query { // Append to existing content in support of a streaming design.
                         **text = format!("{}{}", text.as_str(), renderable_string);
                     }
@@ -159,16 +159,24 @@ pub fn read_ai_prompt_events(
                         eprintln!("{}:{} {:?}", file!(), line!(), e);
                     }
 
+                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
+
                     let mut server_url = String::new();
                     if let Ok(mut globals_rl) = GLOBALS.try_read() {
                         server_url.push_str(&globals_rl.server_url);
                     }
-                    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
-                    transport.config_mut().max_frame_length(usize::MAX);
-                    match transport.await {
-                        Ok(transport) => {
-                            let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
 
+                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
+
+                    let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
+                    eprintln!("{}:{} AT", file!(), line!());
+                    transport.config_mut().max_frame_length(usize::MAX);
+                    eprintln!("{}:{} AT", file!(), line!());
+                    match transport.await { // This line is where we deadlock! TODO fixme
+                        Ok(transport) => {
+                            eprintln!("{}:{} AT", file!(), line!());
+                            let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
+                            eprintln!("{}:{} AT", file!(), line!());
                             let mut generate_text_has_begun = false;
                             match client.generate_text_begin(tarpc::context::current(),
                                 "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
@@ -181,10 +189,12 @@ pub fn read_ai_prompt_events(
                                 Err(e) => {
                                     let msg = format!("{}:{} {:?}", file!(), line!(), e);
                                     eprintln!("{}", &msg);
+                                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
                                     let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
                                     if let Err(e) = r {
                                         eprintln!("{}:{} {:?}", file!(), line!(), e);
                                     }
+                                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
                                 }
                             }
 
@@ -200,13 +210,16 @@ pub fn read_ai_prompt_events(
                                     match async_std::future::timeout(std::time::Duration::from_millis(1200), client.generate_text_next_token(tarpc::context::current())).await {
                                         Ok(Ok(Some(next_token))) => {
                                           eprint!("{}", &next_token);
+                                          eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.01).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
                                           let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
                                           if let Err(e) = r {
                                             eprintln!("{}:{} {:?}", file!(), line!(), e);
                                           }
+                                          eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.01).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
                                         }
                                         Ok(Ok(None)) => {
                                           remaining_allowed_errs -= 10;
+                                          eprintln!("{}:{} AT", file!(), line!());
                                         }
                                         Ok(Err(server_err)) => {
                                           remaining_allowed_errs -= 1;
@@ -226,10 +239,12 @@ pub fn read_ai_prompt_events(
                         Err(e) => {
                             let msg = format!("{}:{} {:?}", file!(), line!(), e);
                             eprintln!("{}", &msg);
+                            eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
                             let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
                             if let Err(e) = r {
                                 eprintln!("{}:{} {:?}", file!(), line!(), e);
                             }
+                            eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
                         }
                     }
 
