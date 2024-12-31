@@ -69,7 +69,8 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
     "WORK_DIR", env_var_work_dir.clone()
   );
 
-  let site_packages = oliana_lib::files::get_cache_file("Oliana-Images-site_packages").map_err(oliana_lib::eloc!())?;
+  let site_packages_folder_name = format!("Oliana-Images-site_packages-{}", INFERENCE_TYPE.to_string() );
+  let site_packages = oliana_lib::files::get_cache_file(&site_packages_folder_name).map_err(oliana_lib::eloc!())?;
   let site_packages = site_packages.to_string_lossy();
   tokio::fs::create_dir_all(&site_packages[..]).await.map_err(oliana_lib::eloc!())?;
 
