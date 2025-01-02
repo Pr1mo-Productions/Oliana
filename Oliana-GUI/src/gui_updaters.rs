@@ -142,7 +142,6 @@ pub fn read_ai_response_events(
 pub fn read_ai_prompt_events(
     mut commands: Commands,
     mut event_reader: EventReader<gui_structs::PromptToAI>,
-    // mut event_writer: EventWriter<ResponseFromAI>,
 ) {
 
     for ev in event_reader.read() {
@@ -151,22 +150,24 @@ pub fn read_ai_prompt_events(
             "text" => {
                 let ev_txt = ev.1.to_string();
                 eprintln!("Passing this text prompt to AI: {:?}", &ev_txt);
+                let rt = if let Ok(globals_rl) = GLOBALS.try_read() {
+                    globals_rl.clone_tokio_rt()
+                } else { panic!("Cannot read globals at this time!")};
 
-                commands.spawn_task(|| async move {
+                rt.spawn(async move {
 
-                    let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-                    if let Err(e) = r {
-                        eprintln!("{}:{} {:?}", file!(), line!(), e);
+                    if let Ok(mut globals_wl) = GLOBALS.write() {
+                        globals_wl.response_from_ai_events.push(
+                            gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() )
+                        );
                     }
-
-                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
 
                     let mut server_url = String::new();
                     if let Ok(mut globals_rl) = GLOBALS.try_read() {
                         server_url.push_str(&globals_rl.server_url);
                     }
 
-                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
+                    eprintln!("{}:{} AT", file!(), line!());
 
                     let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
                     eprintln!("{}:{} AT", file!(), line!());
@@ -189,19 +190,26 @@ pub fn read_ai_prompt_events(
                                 Err(e) => {
                                     let msg = format!("{}:{} {:?}", file!(), line!(), e);
                                     eprintln!("{}", &msg);
-                                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
-                                    let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                                    eprintln!("{}:{} AT", file!(), line!());
+
+                                    if let Ok(mut globals_wl) = GLOBALS.write() {
+                                        globals_wl.response_from_ai_events.push(
+                                            gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() )
+                                        );
+                                    }
+
+                                    /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
                                     if let Err(e) = r {
                                         eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                    }
-                                    eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
+                                    }*/
+                                    eprintln!("{}:{} AT", file!(), line!());
                                 }
                             }
 
                             if generate_text_has_begun {
                                 // Poll continuously, sending state up to the GUI text.
                                 // TODO the LAST event in this does not return None as expected, so we do not exit smoothly and we block the UI thread!
-                                let mut remaining_allowed_errs: isize = 3;
+                                let mut remaining_allowed_errs: isize = 9;
                                 loop {
                                     if remaining_allowed_errs < 1 {
                                         break;
@@ -210,12 +218,18 @@ pub fn read_ai_prompt_events(
                                     match async_std::future::timeout(std::time::Duration::from_millis(1200), client.generate_text_next_token(tarpc::context::current())).await {
                                         Ok(Ok(Some(next_token))) => {
                                           eprint!("{}", &next_token);
-                                          eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.01).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
-                                          let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
+                                          eprintln!("{}:{} AT", file!(), line!());
+                                          /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
                                           if let Err(e) = r {
                                             eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                          }*/
+                                          if let Ok(mut globals_wl) = GLOBALS.write() {
+                                            globals_wl.response_from_ai_events.push(
+                                              gui_structs::ResponseFromAI("text".into(), next_token.to_string() )
+                                            );
                                           }
-                                          eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.01).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
+
+                                          eprintln!("{}:{} AT", file!(), line!());
                                         }
                                         Ok(Ok(None)) => {
                                           remaining_allowed_errs -= 10;
@@ -239,16 +253,21 @@ pub fn read_ai_prompt_events(
                         Err(e) => {
                             let msg = format!("{}:{} {:?}", file!(), line!(), e);
                             eprintln!("{}", &msg);
-                            eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
-                            let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
+                            eprintln!("{}:{} AT", file!(), line!());
+                            /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
                             if let Err(e) = r {
                                 eprintln!("{}:{} {:?}", file!(), line!(), e);
+                            }*/
+                            if let Ok(mut globals_wl) = GLOBALS.write() {
+                                globals_wl.response_from_ai_events.push(
+                                    gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() )
+                                );
                             }
-                            eprintln!("{}:{} AT", file!(), line!()); bevy_defer::access::AsyncWorld.sleep(0.05).await; // We don't know the deadlock cause, so we throw in await points between state changes as a guess.
+                            eprintln!("{}:{} AT", file!(), line!());
                         }
                     }
 
-                    Ok(())
+                    //Ok(())
                 });
             }
             unk => {
@@ -257,3 +276,13 @@ pub fn read_ai_prompt_events(
         }
     }
 }
+
+// Runs every 50ms, moves GLOBALS events to Bevy ECS
+pub fn drain_global_events_to_bevy(mut event_writer: EventWriter<gui_structs::ResponseFromAI>) {
+    if let Ok(mut globals_wl) = GLOBALS.try_write() {
+        for global_item in globals_wl.response_from_ai_events.drain(0..) {
+            event_writer.send(global_item);
+        }
+    }
+}
+

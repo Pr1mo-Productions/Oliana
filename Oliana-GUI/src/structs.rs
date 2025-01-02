@@ -39,6 +39,8 @@ pub struct Globals {
     // Things which want to change servers can modify this + everything creating new connections to a server should reference this global
     pub server_url: String,
     pub server_pcie_devices: std::collections::HashMap<String, Vec<String>>,
+
+    pub response_from_ai_events: Vec<crate::gui_structs::ResponseFromAI>,
 }
 
 impl Globals {
@@ -50,6 +52,7 @@ impl Globals {
             track_proc_dir: std::path::PathBuf::new(),
             server_url: std::env::var("OLIANA_SERVER").unwrap_or_else(|_|"127.0.0.1:9050".into()), // Users may set OLIANA_SERVER=<host>:<port> to default to a different server
             server_pcie_devices: std::collections::HashMap::new(),
+            response_from_ai_events: Vec::with_capacity(16),
         }
     }
 
@@ -116,6 +119,10 @@ impl Globals {
                 eprintln!("{}:{} {:?}", file!(), line!(), e);
             }
         }
+    }
+
+    pub fn clone_tokio_rt(&self) -> tokio::runtime::Handle {
+        return self.tokio_rt.clone().expect("GLOBALS.clone_tokio_rt called too soon!");
     }
 
 }

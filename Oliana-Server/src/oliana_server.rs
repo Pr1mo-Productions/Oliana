@@ -237,8 +237,8 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 channel.execute(server.serve()).for_each(spawn)
             })
-            // Max 10 channels.
-            .buffer_unordered(10)
+            // Max 32 channels.
+            .buffer_unordered(32)
             .for_each(|_| async {}));
 
     all_futures.push(ipv6_futures);
@@ -268,8 +268,8 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         channel.execute(server.serve()).for_each(spawn)
                     })
-                    // Max 10 channels.
-                    .buffer_unordered(10)
+                    // Max 32 channels.
+                    .buffer_unordered(32)
                     .for_each(|_| async {}))
             );
     }
