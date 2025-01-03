@@ -230,7 +230,11 @@ def main(env_var_work_dir, inference_type_str):
   try:
     if hasattr(os, 'add_dll_directory'):
       for folder in os.environ.get('PATH', '').split(os.pathsep):
-        os.add_dll_directory(folder)
+        try:
+          if os.path.exists(folder) and os.path.isdir(folder):
+            os.add_dll_directory(folder)
+        except:
+          pass
   except:
     traceback.print_exc()
 
