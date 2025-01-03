@@ -100,7 +100,8 @@ pub fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_wr
 
 pub fn read_ai_response_events(
     mut event_reader: EventReader<gui_structs::ResponseFromAI>,
-    mut query: Query<&mut Text, With<gui_structs::LLM_ReplyText>>
+    mut llm_reply_text_q: Query<&mut Text, With<gui_structs::LLM_ReplyText>>,
+    mut scrollable_text_q: Query<&mut ScrollableContent>,
 ) {
     for ev in event_reader.read() {
         if cfg!(debug_assertions) {
@@ -111,7 +112,7 @@ pub fn read_ai_response_events(
             "text" => {
                 if ev.1 == CLEAR_TOKEN {
                     // Clear the screen
-                    for mut text in &mut query { // We'll only ever have 1 section of text rendered
+                    for mut text in &mut llm_reply_text_q { // We'll only ever have 1 section of text rendered
                         **text = String::new();
                     }
                 }
@@ -131,8 +132,11 @@ pub fn read_ai_response_events(
 
                     let renderable_string = renderable_string;
 
-                    for mut text in &mut query { // Append to existing content in support of a streaming design.
+                    for mut text in &mut llm_reply_text_q { // Append to existing content in support of a streaming design.
                         **text = format!("{}{}", text.as_str(), renderable_string);
+                    }
+                    for mut scrollable_area in &mut scrollable_text_q {
+                        scrollable_area.scroll_to_bottom();
                     }
                 }
             }
