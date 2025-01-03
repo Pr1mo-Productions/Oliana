@@ -179,7 +179,7 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
             .set(bevy::render::RenderPlugin { // This configuration uses the builtin GPU before a dgpu; Jeff saw some wierd crashes while running lots of sw all reaching for the dgpu, so this is here as a small reliability improver.
                 render_creation: bevy::render::settings::RenderCreation::Automatic(
                     bevy::render::settings::WgpuSettings {
-                        power_preference: bevy::render::settings::PowerPreference::LowPower,
+                        power_preference: bevy::render::settings::PowerPreference::LowPower, // TODO some boxes will crash if LowPower isn't available!
                         ..default()
                     }
                 ),

@@ -32,7 +32,7 @@ deunicode =    { version = "1.6" }
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
 [target.'cfg(target_os = "linux")'.dependencies]
 # Graphics dependencies
-bevy =       { version = "0.15", features = ["wayland"] }
+bevy =       { version = "0.15", features = ["wayland"] } # TODO investigate supporting X11 + Wayland at SAME TIME
 
 # This block specified dependencies ONLY compiled in on macos
 [target.'cfg(target_os = "macos")'.dependencies]
