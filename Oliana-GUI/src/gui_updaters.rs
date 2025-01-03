@@ -209,7 +209,7 @@ pub fn read_ai_prompt_events(
                             if generate_text_has_begun {
                                 // Poll continuously, sending state up to the GUI text.
                                 // TODO the LAST event in this does not return None as expected, so we do not exit smoothly and we block the UI thread!
-                                let mut remaining_allowed_errs: isize = 9;
+                                let mut remaining_allowed_errs: isize = 12;
                                 loop {
                                     if remaining_allowed_errs < 1 {
                                         break;
@@ -240,7 +240,7 @@ pub fn read_ai_prompt_events(
                                           eprintln!("{}:{} {:?}", file!(), line!(), server_err);
                                         }
                                     }
-                                    eprintln!("AFTER tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await remaining_allowed_errs={remaining_allowed_errs}");
+                                    eprintln!("AFTER client.generate_text_next_token(tarpc::context::current()).await remaining_allowed_errs={remaining_allowed_errs}");
                                 }
                                 eprintln!("Done with client.generate_text_next_token!");
                             }
