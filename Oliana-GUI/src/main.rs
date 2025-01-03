@@ -42,6 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
   let mut cli_args = structs::Args::parse();
   cli_args.update_from_env();
 
+  std::env::set_var("RUST_LOG", "none,oliana_gui=debug");
+
   let rt  = tokio::runtime::Builder::new_multi_thread()
     .worker_threads(std::cmp::max(2, num_cpus::get_physical())) // Use all host cores, unless single-cored in which case pretend to have 2
     .thread_stack_size(8 * 1024 * 1024)
