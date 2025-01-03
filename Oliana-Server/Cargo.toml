@@ -3,6 +3,9 @@ name = "oliana_server"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+enable_subproc_idle = []
+
 [lib]
 name = "oliana_server_lib"
 path = "src/oliana_server_lib.rs"

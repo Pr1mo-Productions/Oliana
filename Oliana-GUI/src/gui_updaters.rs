@@ -90,7 +90,9 @@ pub async fn ask_server_for_pci_devices_async(server_url: &str, pcie_devices: &m
 
 pub fn text_listener(mut events: EventReader<TextInputSubmitEvent>, mut event_writer: EventWriter<gui_structs::PromptToAI>,) {
     for event in events.read() {
-        info!("{:?} submitted: {}", event.entity, event.value);
+        if cfg!(debug_assertions) {
+            info!("{:?} submitted: {}", event.entity, event.value);
+        }
         event_writer.send(gui_structs::PromptToAI("text".into(), event.value.clone()));
     }
 }
@@ -101,7 +103,9 @@ pub fn read_ai_response_events(
     mut query: Query<&mut Text, With<gui_structs::LLM_ReplyText>>
 ) {
     for ev in event_reader.read() {
-        eprintln!("{}:{} Event {:?} recieved!", file!(), line!(), ev);
+        if cfg!(debug_assertions) {
+            eprintln!("{}:{} Event {:?} recieved!", file!(), line!(), ev);
+        }
         let event_type = ev.0.to_string();
         match event_type.as_str() {
             "text" => {
@@ -150,7 +154,7 @@ pub fn read_ai_prompt_events(
             "text" => {
                 let ev_txt = ev.1.to_string();
                 eprintln!("Passing this text prompt to AI: {:?}", &ev_txt);
-                let rt = if let Ok(globals_rl) = GLOBALS.try_read() {
+                let rt = if let Ok(globals_rl) = GLOBALS.read() {
                     globals_rl.clone_tokio_rt()
                 } else { panic!("Cannot read globals at this time!")};
 
@@ -163,21 +167,15 @@ pub fn read_ai_prompt_events(
                     }
 
                     let mut server_url = String::new();
-                    if let Ok(mut globals_rl) = GLOBALS.try_read() {
+                    if let Ok(mut globals_rl) = GLOBALS.read() {
                         server_url.push_str(&globals_rl.server_url);
                     }
 
-                    eprintln!("{}:{} AT", file!(), line!());
-
                     let mut transport = tarpc::serde_transport::tcp::connect(server_url, tarpc::tokio_serde::formats::Bincode::default);
-                    eprintln!("{}:{} AT", file!(), line!());
                     transport.config_mut().max_frame_length(usize::MAX);
-                    eprintln!("{}:{} AT", file!(), line!());
                     match transport.await { // This line is where we deadlock! TODO fixme
                         Ok(transport) => {
-                            eprintln!("{}:{} AT", file!(), line!());
                             let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
-                            eprintln!("{}:{} AT", file!(), line!());
                             let mut generate_text_has_begun = false;
                             match client.generate_text_begin(tarpc::context::current(),
                                 "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
@@ -190,7 +188,6 @@ pub fn read_ai_prompt_events(
                                 Err(e) => {
                                     let msg = format!("{}:{} {:?}", file!(), line!(), e);
                                     eprintln!("{}", &msg);
-                                    eprintln!("{}:{} AT", file!(), line!());
 
                                     if let Ok(mut globals_wl) = GLOBALS.write() {
                                         globals_wl.response_from_ai_events.push(
@@ -198,11 +195,6 @@ pub fn read_ai_prompt_events(
                                         );
                                     }
 
-                                    /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-                                    if let Err(e) = r {
-                                        eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                    }*/
-                                    eprintln!("{}:{} AT", file!(), line!());
                                 }
                             }
 
@@ -214,56 +206,38 @@ pub fn read_ai_prompt_events(
                                     if remaining_allowed_errs < 1 {
                                         break;
                                     }
-                                    eprintln!("BEFORE client.generate_text_next_token(tarpc::context::current()).await");
                                     match client.generate_text_next_token(tarpc::context::current()).await {
                                         Ok(Some(next_token)) => {
-                                          eprint!("{}", &next_token);
-                                          eprintln!("{}:{} AT", file!(), line!());
-                                          /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
-                                          if let Err(e) = r {
-                                            eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                          }*/
                                           if let Ok(mut globals_wl) = GLOBALS.write() {
                                             globals_wl.response_from_ai_events.push(
                                               gui_structs::ResponseFromAI("text".into(), next_token.to_string() )
                                             );
                                           }
-
-                                          eprintln!("{}:{} AT", file!(), line!());
                                         }
                                         Ok(None) => {
                                           remaining_allowed_errs -= 10;
-                                          eprintln!("{}:{} AT", file!(), line!());
                                         }
                                         Err(server_err) => {
                                           remaining_allowed_errs -= 1;
-                                          eprintln!("{}:{} {:?}", file!(), line!(), server_err);
                                         }
                                     }
-                                    eprintln!("AFTER client.generate_text_next_token(tarpc::context::current()).await remaining_allowed_errs={remaining_allowed_errs}");
                                 }
-                                eprintln!("Done with client.generate_text_next_token!");
                             }
 
                         }
                         Err(e) => {
                             let msg = format!("{}:{} {:?}", file!(), line!(), e);
                             eprintln!("{}", &msg);
-                            eprintln!("{}:{} AT", file!(), line!());
-                            /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() ));
-                            if let Err(e) = r {
-                                eprintln!("{}:{} {:?}", file!(), line!(), e);
-                            }*/
                             if let Ok(mut globals_wl) = GLOBALS.write() {
                                 globals_wl.response_from_ai_events.push(
                                     gui_structs::ResponseFromAI("text".into(), CLEAR_TOKEN.to_string() )
                                 );
+                                globals_wl.response_from_ai_events.push(
+                                    gui_structs::ResponseFromAI("text".into(), msg.clone() )
+                                );
                             }
-                            eprintln!("{}:{} AT", file!(), line!());
                         }
                     }
-
-                    //Ok(())
                 });
             }
             unk => {
