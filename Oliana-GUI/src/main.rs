@@ -81,7 +81,7 @@ pub fn poll_until_exit_or_elapsed(sys: &mut sysinfo::System, pid: usize, ms_to_p
 }
 
 pub fn cleanup_child_procs() {
-  if let Ok(mut globals_wl) = GLOBALS.try_write() {
+  if let Ok(mut globals_wl) = GLOBALS.write() {
 
     let mut sys = sysinfo::System::new_all();
     sys.refresh_all();
