@@ -195,7 +195,7 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
     .insert_resource((*cli_args).clone()) // Accept a Ref<crate::cli::Args> in your system's function to read cli args in the UI
 
     .add_systems(Update, gui_updaters::render_server_url_in_use.run_if(bevy::time::common_conditions::on_timer(bevy::utils::Duration::from_millis(400))) )
-    .add_systems(Update, gui_updaters::drain_global_events_to_bevy.run_if(bevy::time::common_conditions::on_timer(bevy::utils::Duration::from_millis(50))) )
+    .add_systems(Update, gui_updaters::drain_global_events_to_bevy.run_if(bevy::time::common_conditions::on_timer(bevy::utils::Duration::from_millis(40))) )
 
     .add_systems(Update, gui_updaters::make_visible )
     .add_systems(Startup, (gui_setup::gui_setup, gui_oneshot_tasks::determine_if_we_have_local_gpu) )
