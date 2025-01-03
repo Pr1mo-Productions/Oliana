@@ -3,6 +3,10 @@ name = "oliana_gui"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+wayland = []
+
 [dependencies]
 oliana_lib = { path = "../Oliana-Lib" }
 oliana_server = { path = "../Oliana-Server" }
@@ -30,9 +34,13 @@ async-std =    { version = "1.13" }
 deunicode =    { version = "1.6" }
 
 # This block specified dependencies ONLY compiled in on linux; we want wayland support, older DEs can miss out on cool new tech.
-[target.'cfg(target_os = "linux")'.dependencies]
+[target.'cfg(all(target_os = "linux", feature="wayland"))'.dependencies]
 # Graphics dependencies
 bevy =       { version = "0.15", features = ["wayland"] } # TODO investigate supporting X11 + Wayland at SAME TIME
+
+[target.'cfg(all(target_os = "linux", not(feature="wayland")))'.dependencies]
+# Graphics dependencies
+bevy =       { version = "0.15", features = [] } # TODO investigate supporting X11 + Wayland at SAME TIME
 
 # This block specified dependencies ONLY compiled in on macos
 [target.'cfg(target_os = "macos")'.dependencies]
