@@ -139,6 +139,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                     // If it's been > 20s since last incoming message, begin SIGSTOP-ing child processes?
                     #[cfg(target_os = "linux")]
                     {
+                        /*
                         if let Ok(duration) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
                             let last_client_connect_s = LAST_CLIENT_CONNECT_TIME_EPOCH_S.load(std::sync::atomic::Ordering::Relaxed);
                             let seconds_since_last_client_connect = duration.as_secs() - last_client_connect_s;
@@ -153,7 +154,7 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
                             }
                             write_lock_guard.set_procs_should_be_stopped(procs_should_be_stopped);
                             last_tick_procs_should_be_stopped = procs_should_be_stopped;
-                        }
+                        }*/
                     }
                 }
                 if let Ok(read_lock_guard) = ensure_registered_procs_running_t_shareable_procs.try_read() {

@@ -214,9 +214,9 @@ pub fn read_ai_prompt_events(
                                     if remaining_allowed_errs < 1 {
                                         break;
                                     }
-                                    eprintln!("BEFORE tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await");
-                                    match async_std::future::timeout(std::time::Duration::from_millis(1200), client.generate_text_next_token(tarpc::context::current())).await {
-                                        Ok(Ok(Some(next_token))) => {
+                                    eprintln!("BEFORE client.generate_text_next_token(tarpc::context::current()).await");
+                                    match client.generate_text_next_token(tarpc::context::current()).await {
+                                        Ok(Some(next_token)) => {
                                           eprint!("{}", &next_token);
                                           eprintln!("{}:{} AT", file!(), line!());
                                           /*let r = bevy_defer::access::AsyncWorld.send_event(gui_structs::ResponseFromAI("text".into(), next_token.to_string() ));
@@ -231,17 +231,13 @@ pub fn read_ai_prompt_events(
 
                                           eprintln!("{}:{} AT", file!(), line!());
                                         }
-                                        Ok(Ok(None)) => {
+                                        Ok(None) => {
                                           remaining_allowed_errs -= 10;
                                           eprintln!("{}:{} AT", file!(), line!());
                                         }
-                                        Ok(Err(server_err)) => {
+                                        Err(server_err) => {
                                           remaining_allowed_errs -= 1;
                                           eprintln!("{}:{} {:?}", file!(), line!(), server_err);
-                                        }
-                                        Err(timeout_err) => {
-                                          remaining_allowed_errs -= 1;
-                                          eprintln!("{}:{} {:?}", file!(), line!(), timeout_err);
                                         }
                                     }
                                     eprintln!("AFTER tokio::time::timeout(std::time::Duration::from_millis(900), client.generate_text_next_token(tarpc::context::current())).await remaining_allowed_errs={remaining_allowed_errs}");

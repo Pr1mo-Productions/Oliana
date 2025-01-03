@@ -286,7 +286,14 @@ impl OneTrackedProc {
     }
 
     if self.proc_output_txt.len() > 32 * 1024 {
-      self.proc_output_txt = self.proc_output_txt[8192..].to_string();
+      let mut closest_char_idx = 8192;
+      for (char_idx, _c) in self.proc_output_txt.char_indices() {
+        if char_idx > closest_char_idx {
+          closest_char_idx = char_idx;
+          break;
+        }
+      }
+      self.proc_output_txt = self.proc_output_txt[closest_char_idx..].to_string();
     }
 
     Ok(())
