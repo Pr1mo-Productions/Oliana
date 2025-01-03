@@ -144,13 +144,13 @@ pub fn cleanup_child_procs() {
 
 pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::error::Error>> {
 
-  if let Ok(mut globals_wl) = GLOBALS.try_write() {
+  if let Ok(mut globals_wl) = GLOBALS.write() {
     if let Err(e) = globals_wl.initialize() {
         eprintln!("{}:{} {}", file!(), line!(), e);
     }
   }
   tokio::task::spawn(async { // We want a runtime handle, but we also do not want to pin to this async thread as it will be used 100% by the Bevy engine below.
-    if let Ok(mut globals_wl) = GLOBALS.try_write() {
+    if let Ok(mut globals_wl) = GLOBALS.write() {
         globals_wl.tokio_rt = Some( tokio::runtime::Handle::current() );
     }
   });
