@@ -8,6 +8,7 @@ echo "Building with CUDA support"
 
 cargo build --release \
   --no-default-features \
+  --features oliana_server/enable_subproc_idle \
   --features oliana_gui/wayland \
   --features oliana_images/cuda \
   --features oliana_text/cuda
