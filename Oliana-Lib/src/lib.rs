@@ -7,5 +7,6 @@ pub mod misc;
 pub mod launchers;
 pub mod build_meta;
 
+#[cfg(target_os = "linux")]
 pub use nix;
 
