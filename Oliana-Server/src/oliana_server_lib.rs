@@ -18,6 +18,8 @@ pub trait Oliana {
 
     /// Runs an AI model and returns immediately; callers should wait on generate_image_get_result() to read a .png vector of bytes back
     async fn generate_image_begin(prompt: String, negative_prompt: String, guidance_scale: f32, num_inference_steps: u32) -> String;
+    /// Returns true if image gen is complete, else false. Useful for determining when generate_image_get_result() can be called w/o waiting
+    async fn generate_image_result_exists() -> bool;
     /// Waits until image has completed and returns result.
     async fn generate_image_get_result() -> Vec<u8>;
 
@@ -283,6 +285,12 @@ impl Oliana for OlianaServer {
         }
 
         String::new()
+    }
+
+    async fn generate_image_result_exists(self, _: tarpc::context::Context) -> bool {
+        let response_txt_file = self.get_current_image_output_txt_path(); // created if error
+        let response_png_file = self.get_current_image_output_png_path(); // created if success
+        return response_txt_file.exists() || response_png_file.exists();
     }
 
     async fn generate_image_get_result(self, _: tarpc::context::Context) -> Vec<u8> {

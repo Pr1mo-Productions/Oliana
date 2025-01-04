@@ -192,7 +192,7 @@ pub fn read_ai_prompt_events(
                             let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
 
                             let mut generate_text_has_begun = false;
-                            let mut generate_image_has_begun = false;
+                            let mut generate_image_must_be_loaded = false;
 
                             match client.generate_text_begin(tarpc::context::current(),
                                 "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
@@ -221,7 +221,7 @@ pub fn read_ai_prompt_events(
                             ).await {
                                 Ok(response) => {
                                     eprintln!("[ generate_image_begin ] response = {}", &response);
-                                    generate_image_has_begun = true;
+                                    generate_image_must_be_loaded = true;
                                 },
                                 Err(e) => {
                                     let msg = format!("{}:{} {:?}", file!(), line!(), e);
@@ -252,28 +252,26 @@ pub fn read_ai_prompt_events(
                                           remaining_allowed_errs -= 1;
                                         }
                                     }
+
+                                    if generate_image_must_be_loaded {
+                                        match client.generate_image_result_exists(tarpc::context::current()).await {
+                                            Ok(result_exists_bool) => {
+                                                if result_exists_bool {
+                                                    read_image_from_server_and_push_event_to_globals(&client).await;
+                                                    generate_image_must_be_loaded = false;
+                                                }
+                                            }
+                                            Err(server_err) => {
+                                                remaining_allowed_errs -= 1;
+                                            }
+                                        }
+                                    }
+
                                 }
                             }
 
-                            if generate_image_has_begun {
-                                match client.generate_image_get_result(tarpc::context::current()).await {
-                                    Ok(png_vec_u8) => {
-                                        eprintln!("Read {} bytes of PNG image from AI server!", png_vec_u8.len());
-                                        let tmp_png_file_path = oliana_lib::files::get_cache_file("tmp.png").expect("Fatal Filesystem error // todo remove me");
-                                        if let Err(e) = tokio::fs::write(&tmp_png_file_path, &png_vec_u8[..]).await {
-                                            eprintln!("{}:{} {:?}", file!(), line!(), e);
-                                        }
-                                        if let Ok(mut globals_wl) = GLOBALS.write() {
-                                          globals_wl.response_from_ai_events.push(
-                                            gui_structs::ResponseFromAI("image".into(), tmp_png_file_path.to_string_lossy().to_string())
-                                          );
-                                        }
-                                    }
-                                    Err(e) => {
-                                        let msg = format!("{}:{} {:?}", file!(), line!(), e);
-                                        eprintln!("{}", &msg);
-                                    }
-                                }
+                            if generate_image_must_be_loaded {
+                                read_image_from_server_and_push_event_to_globals(&client).await;
                             }
 
                         }
@@ -298,6 +296,28 @@ pub fn read_ai_prompt_events(
         }
     }
 }
+
+async fn read_image_from_server_and_push_event_to_globals(client: &oliana_server_lib::OlianaClient) {
+    match client.generate_image_get_result(tarpc::context::current()).await {
+        Ok(png_vec_u8) => {
+            eprintln!("Read {} bytes of PNG image from AI server!", png_vec_u8.len());
+            let tmp_png_file_path = oliana_lib::files::get_cache_file("tmp.png").expect("Fatal Filesystem error // todo remove me");
+            if let Err(e) = tokio::fs::write(&tmp_png_file_path, &png_vec_u8[..]).await {
+                eprintln!("{}:{} {:?}", file!(), line!(), e);
+            }
+            if let Ok(mut globals_wl) = GLOBALS.write() {
+              globals_wl.response_from_ai_events.push(
+                gui_structs::ResponseFromAI("image".into(), tmp_png_file_path.to_string_lossy().to_string())
+              );
+            }
+        }
+        Err(e) => {
+            let msg = format!("{}:{} {:?}", file!(), line!(), e);
+            eprintln!("{}", &msg);
+        }
+    }
+}
+
 
 // Runs every 50ms, moves GLOBALS events to Bevy ECS
 pub fn drain_global_events_to_bevy(mut event_writer: EventWriter<gui_structs::ResponseFromAI>) {
