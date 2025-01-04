@@ -18,6 +18,7 @@ Oliana is made up of several sub-programs. This design minimises damage when one
     - [ ] Segment PNG into foreground + background
     - [ ] Set all background alpha values to `0`
     - [-] Render semitransparent PNG to GUI
+         - [ ] Bugfix; the image is not updated on 2nd+ prompts (.png file contents change though!) and is still stuck to the right side of the screen for some reason.
  - [ ] Investigate design ideas for 2+ player mode; we'd need a server OR UDP multicast on the same LAN (or a list of IPs we round-robin messages to)
 
 
