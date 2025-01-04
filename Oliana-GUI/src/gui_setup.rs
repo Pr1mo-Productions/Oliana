@@ -191,10 +191,7 @@ pub fn gui_setup(
                 //justify_content: JustifyContent::Center, // Start here means "Left"
                 ..default()
             },
-            //Sprite::from_image(Image::transparent()),
-            //Sprite::default()
             Sprite {
-                image: asset_server.load("../../../docs/img/ai-cliffs-02.png"),
                 anchor: bevy::sprite::Anchor::Center,
                 image_mode: bevy::ui::prelude::SpriteImageMode::Auto,
                 //custom_size: Some(bevy::math::f32::Vec2{x: 240.0, y:240.0}),
