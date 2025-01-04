@@ -146,6 +146,7 @@ pub fn read_ai_response_events(
                 let png_file_path = ev.1.to_string();
                 let img_handle: Handle<Image> = asset_server.load(png_file_path);
                 for mut bg_sprite in &mut bg_sprite_q {
+                    bg_sprite.image = Handle::<Image>::default();
                     bg_sprite.image = img_handle.clone();
                 }
             }

@@ -187,19 +187,23 @@ pub fn gui_setup(
                     //bottom: Val::Px(STATUS_BAR_HEIGHT + 2.0),
                     bottom: Val::Px(0.0),
                 },
-                //align_items: AlignItems::Center, // Start here means "Top"
-                //justify_content: JustifyContent::Center, // Start here means "Left"
+                align_items: AlignItems::Center, // Start here means "Top"
+                justify_content: JustifyContent::Center, // Start here means "Left"
                 ..default()
             },
-            Sprite {
-                anchor: bevy::sprite::Anchor::Center,
-                image_mode: bevy::ui::prelude::SpriteImageMode::Auto,
-                //custom_size: Some(bevy::math::f32::Vec2{x: 240.0, y:240.0}),
-                ..default()
-            },
-            gui_structs::Background_Image,
             ZIndex(100),
-        ));
+        ))
+        .with_children(|node| {
+            node.spawn((
+                Sprite {
+                    anchor: bevy::sprite::Anchor::Center,
+                    image_mode: bevy::ui::prelude::SpriteImageMode::Auto,
+                    custom_size: Some(bevy::math::f32::Vec2{x: 512.0, y:512.0}),
+                    ..default()
+                },
+                gui_structs::Background_Image,
+            ));
+        });
     });
 
 

@@ -158,7 +158,8 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
   });
 
   App::new()
-    .add_plugins(DefaultPlugins
+    .add_plugins(
+        DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Oliana - The Game".into(),
@@ -186,7 +187,12 @@ pub async fn main_async(cli_args: &structs::Args) -> Result<(), Box<dyn std::err
                     }
                 ),
                 ..default()
-            }))
+            })
+            .set(AssetPlugin {
+                watch_for_changes_override: Some(true),
+                ..Default::default()
+            })
+            )
     .add_plugins(bevy_defer::AsyncPlugin::default_settings())
     .add_plugins(TextInputPlugin)
     .add_plugins(ScrollViewPlugin)
