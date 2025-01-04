@@ -102,6 +102,8 @@ pub fn read_ai_response_events(
     mut event_reader: EventReader<gui_structs::ResponseFromAI>,
     mut llm_reply_text_q: Query<&mut Text, With<gui_structs::LLM_ReplyText>>,
     mut scrollable_text_q: Query<&mut ScrollableContent>,
+    mut bg_sprite_q: Query<&mut Sprite, With<gui_structs::Background_Image>>,
+    asset_server: Res<AssetServer>,
 ) {
     for ev in event_reader.read() {
         if cfg!(debug_assertions) {
@@ -140,8 +142,15 @@ pub fn read_ai_response_events(
                     }
                 }
             }
+            "image" => {
+                let png_file_path = ev.1.to_string();
+                let img_handle: Handle<Image> = asset_server.load(png_file_path);
+                for mut bg_sprite in &mut bg_sprite_q {
+                    bg_sprite.image = img_handle.clone();
+                }
+            }
             unk => {
-                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?}", file!(), line!(), &event_type);
+                eprintln!("{}:{} UNKNOWN EVENT TYPE {:?} ev={:?}", file!(), line!(), &event_type, &ev);
             }
         }
     }
@@ -179,11 +188,15 @@ pub fn read_ai_prompt_events(
                     transport.config_mut().max_frame_length(usize::MAX);
                     match transport.await { // This line is where we deadlock! TODO fixme
                         Ok(transport) => {
+
                             let client = oliana_server_lib::OlianaClient::new(tarpc::client::Config::default(), transport).spawn();
+
                             let mut generate_text_has_begun = false;
+                            let mut generate_image_has_begun = false;
+
                             match client.generate_text_begin(tarpc::context::current(),
                                 "You are an ancient storytelling diety named Olly who answers in parables and short stories.".into(),
-                                ev_txt.into()
+                                ev_txt.clone().into()
                             ).await {
                                 Ok(response) => {
                                     eprintln!("[ generate_text_begin ] response = {}", &response);
@@ -199,6 +212,20 @@ pub fn read_ai_prompt_events(
                                         );
                                     }
 
+                                }
+                            }
+
+                            match client.generate_image_begin(tarpc::context::current(),
+                                ev_txt.clone().into(),
+                                "".to_string(), 3.5, 12
+                            ).await {
+                                Ok(response) => {
+                                    eprintln!("[ generate_image_begin ] response = {}", &response);
+                                    generate_image_has_begun = true;
+                                },
+                                Err(e) => {
+                                    let msg = format!("{}:{} {:?}", file!(), line!(), e);
+                                    eprintln!("{}", &msg);
                                 }
                             }
 
@@ -224,6 +251,27 @@ pub fn read_ai_prompt_events(
                                         Err(server_err) => {
                                           remaining_allowed_errs -= 1;
                                         }
+                                    }
+                                }
+                            }
+
+                            if generate_image_has_begun {
+                                match client.generate_image_get_result(tarpc::context::current()).await {
+                                    Ok(png_vec_u8) => {
+                                        eprintln!("Read {} bytes of PNG image from AI server!", png_vec_u8.len());
+                                        let tmp_png_file_path = oliana_lib::files::get_cache_file("tmp.png").expect("Fatal Filesystem error // todo remove me");
+                                        if let Err(e) = tokio::fs::write(&tmp_png_file_path, &png_vec_u8[..]).await {
+                                            eprintln!("{}:{} {:?}", file!(), line!(), e);
+                                        }
+                                        if let Ok(mut globals_wl) = GLOBALS.write() {
+                                          globals_wl.response_from_ai_events.push(
+                                            gui_structs::ResponseFromAI("image".into(), tmp_png_file_path.to_string_lossy().to_string())
+                                          );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let msg = format!("{}:{} {:?}", file!(), line!(), e);
+                                        eprintln!("{}", &msg);
                                     }
                                 }
                             }

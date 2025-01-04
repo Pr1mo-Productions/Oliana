@@ -13,11 +13,11 @@ Oliana is made up of several sub-programs. This design minimises damage when one
  - [ ] Compiles + Runs GUI on Windows (TODO see if AI Models will come up after tweaks)
  - [ ] Design an initial world state file format to begin games with; the first one should contain Oliana Lore
  - [ ] Design a Game Save file format; at start-up we can read and summarize that to the player
- - [ ] Design + Demo AI image generation going to the speaker's UI area on the right side of the screen (transparency an important milestone too!)
-    - [ ] Ask server to do image gen -> PNG bytes in-memory
+ - [-] Design + Demo AI image generation going to the speaker's UI area on the right side of the screen (transparency an important milestone too!)
+    - [x] Ask server to do image gen -> PNG bytes in-memory
     - [ ] Segment PNG into foreground + background
     - [ ] Set all background alpha values to `0`
-    - [ ] Render semitransparent PNG to GUI
+    - [-] Render semitransparent PNG to GUI
  - [ ] Investigate design ideas for 2+ player mode; we'd need a server OR UDP multicast on the same LAN (or a list of IPs we round-robin messages to)
 
 
