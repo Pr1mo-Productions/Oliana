@@ -24,5 +24,9 @@ else
   echo "Built w/o CUDA support!"
 fi
 
+if [ "$1" = "norun" ] || [ "$1" = "build" ]; then
+  exit 0
+fi
+
 ./target/release/oliana_gui || pkill oliana
 
