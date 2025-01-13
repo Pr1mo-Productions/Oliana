@@ -43,7 +43,7 @@ allowed_errors = 3
 while allowed_errors > 0:
   try:
 
-    time.sleep(1)
+    time.sleep(0.75)
 
     user_sessions = psutil.users()
     num_user_sessions = len(user_sessions)
@@ -51,7 +51,7 @@ while allowed_errors > 0:
 
     for i in range(0,8):
       if i < num_user_sessions:
-        bstick.set_color(channel=0, index=i, name="red")
+        bstick.set_color(channel=0, index=i, red=128, green=0, blue=0)
       else:
         bstick.set_color(channel=0, index=i, red=0, green=0, blue=0) # "Off"
 
