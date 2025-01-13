@@ -1,0 +1,18 @@
+# sudo vim /etc/systemd/system/stitch-blink-status.service
+# sudo systemctl enable --now stitch-blink-status.service
+
+[Unit]
+Description=Polls system status and updates the blink stick lights
+
+[Service]
+Type=simple
+WorkingDirectory=/home/user/Oliana
+User=user
+Group=user
+ExecStart=/usr/bin/python /home/user/Oliana/cloud/stitch-blink-status.py
+Restart=always
+RestartSec=4
+
+[Install]
+WantedBy=multi-user.target
+
