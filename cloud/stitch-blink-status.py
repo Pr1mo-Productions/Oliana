@@ -84,7 +84,7 @@ while allowed_errors > 0:
       led_to_blink = int(''.join( c for c in tty_name if c.isdigit() ))
       print(f'led_to_blink={led_to_blink}')
       bstick.set_color(channel=0, index=led_to_blink, red=0, green=0, blue=0) # "Off"
-      time.sleep(0.5)
+      time.sleep(0.25)
       bstick.set_color(channel=0, index=led_to_blink, red=128, green=0, blue=0)
 
 
