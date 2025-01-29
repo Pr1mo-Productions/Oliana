@@ -59,8 +59,10 @@ while allowed_errors > 0:
     io = inotify.adapters.Inotify()
     io.add_watch('/tmp/last_bash_cmd')
 
+    should_blink_led = False
     for event in io.event_gen(yield_nones=False, timeout_s=0.8):
-      print(f'event={event}')
+      #print(f'event={event}')
+      should_blink_led = True
       break # either 800ms passed or file processed
 
     user_sessions = psutil.users()
@@ -74,14 +76,15 @@ while allowed_errors > 0:
         bstick.set_color(channel=0, index=i, red=0, green=0, blue=0) # "Off"
 
     led_to_blink = -1
-    if (time.time() - os.path.getmtime('/tmp/last_bash_cmd')) < 0.5:
+    #if (time.time() - os.path.getmtime('/tmp/last_bash_cmd')) < 0.5:
+    if should_blink_led:
       tty_name = ''
       with open('/tmp/last_bash_cmd', 'r') as fd:
         tty_name = fd.read()
       led_to_blink = int(''.join( c for c in tty_name if c.isdigit() ))
       print(f'led_to_blink={led_to_blink}')
-      bstick.set_color(channel=0, index=i, red=0, green=0, blue=0) # "Off"
-      time.sleep(0.1)
+      bstick.set_color(channel=0, index=led_to_blink, red=0, green=0, blue=0) # "Off"
+      time.sleep(0.5)
       bstick.set_color(channel=0, index=led_to_blink, red=128, green=0, blue=0)
 
 
