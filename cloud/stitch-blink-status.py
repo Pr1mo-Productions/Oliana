@@ -34,6 +34,20 @@ except:
   ])
   import psutil
 
+try:
+  import inotify.adapters
+except:
+  subprocess.run([
+    'yay', '-S', 'python-inotify'
+  ])
+  import inotify.adapters
+
+try:
+  if not os.path.exists('/tmp/last_bash_cmd'):
+    with open('/tmp/last_bash_cmd', 'w') as fd:
+      fd.write('0')
+except:
+  traceback.print_exc()
 
 # See https://arvydas.github.io/blinkstick-python/
 bstick = blinkstick.blinkstick.find_first()
@@ -42,8 +56,12 @@ print(f'bstick={bstick}')
 allowed_errors = 3
 while allowed_errors > 0:
   try:
+    io = inotify.adapters.Inotify()
+    io.add_watch('/tmp/last_bash_cmd')
 
-    time.sleep(0.75)
+    for event in io.event_gen(yield_nones=False, timeout_s=0.8):
+      print(f'event={event}')
+      break # either 800ms passed or file processed
 
     user_sessions = psutil.users()
     num_user_sessions = len(user_sessions)
@@ -55,8 +73,28 @@ while allowed_errors > 0:
       else:
         bstick.set_color(channel=0, index=i, red=0, green=0, blue=0) # "Off"
 
+    led_to_blink = -1
+    if (time.time() - os.path.getmtime('/tmp/last_bash_cmd')) < 0.5:
+      tty_name = ''
+      with open('/tmp/last_bash_cmd', 'r') as fd:
+        tty_name = fd.read()
+      led_to_blink = int(''.join( c for c in tty_name if c.isdigit() ))
+      print(f'led_to_blink={led_to_blink}')
+      bstick.set_color(channel=0, index=i, red=0, green=0, blue=0) # "Off"
+      time.sleep(0.1)
+      bstick.set_color(channel=0, index=led_to_blink, red=128, green=0, blue=0)
+
+
   except:
     traceback.print_exc()
     allowed_errors -= 1
     time.sleep(0.25)
+
+# Note:
+# We have added the following to the guest .bashrc in support of the blinking lights!
+# function process_command() {
+#   #echo "$BASH_COMMAND" > /tmp/last_bash_cmd
+#   tty > /tmp/last_bash_cmd
+# }
+# trap process_command DEBUG
 
